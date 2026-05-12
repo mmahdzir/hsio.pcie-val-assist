@@ -3,7 +3,7 @@
 set -e
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ISCP FC PCIe Validation Assistant — Copilot CLI Agent Installer
+# HSIO PCIe Validation Assistant — Copilot CLI Agent Installer
 #
 # Installs agents, skills, and testplan data for PCH HSIO PCIe test development.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ extract_frontmatter() {
 
 show_usage() {
     cat << 'EOF'
-ISCP FC PCIe Validation Assistant — Agent Installer
+HSIO PCIe Validation Assistant — Agent Installer
 
 Usage: install-agents.sh [OPTIONS]
 

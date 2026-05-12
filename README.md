@@ -1,9 +1,9 @@
-# 🔌 ISCP FC PCIe Validation Assistant
+# 🔌 HSIO PCIe Validation Assistant
 
 > AI-powered PCIe validation assistant for PCH HSIO full-chip test development.
 > Creates UVM tests, debugs failures, ports tests across models, generates regression reports.
 
-[![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot-CLI%20Agent-blue?logo=github)](https://github.com/mmahdzir/iscp.fc-pcie-val-assist)
+[![GitHub Copilot CLI](https://img.shields.io/badge/GitHub%20Copilot-CLI%20Agent-blue?logo=github)](https://github.com/mmahdzir/hsio.pcie-val-assist)
 [![Platform](https://img.shields.io/badge/platform-PCH%20HSIO%20PCIe-green)]()
 [![License](https://img.shields.io/badge/license-Intel%20Internal-red)]()
 
@@ -71,8 +71,8 @@
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/mmahdzir/iscp.fc-pcie-val-assist.git
-cd iscp.fc-pcie-val-assist
+git clone https://github.com/mmahdzir/hsio.pcie-val-assist.git
+cd hsio.pcie-val-assist
 
 # 2. Run the installer
 ./install-agents.sh
@@ -81,7 +81,7 @@ cd iscp.fc-pcie-val-assist
 copilot --agent=hsio_val_assist
 ```
 
-> **Note:** For `intel-sandbox`, the repo will be transferred to `intel-sandbox/iscp.fc-pcie-val-assist` once permissions are granted.
+> **Note:** For `intel-sandbox`, the repo will be transferred to `intel-sandbox/hsio.pcie-val-assist` once permissions are granted.
 
 ---
 
@@ -144,7 +144,7 @@ The agent will:
 ## Repository Structure
 
 ```
-iscp.fc-pcie-val-assist/
+hsio.pcie-val-assist/
 ├── README.md                                    # This file
 ├── install-agents.sh                            # One-click installer
 ├── agents/
@@ -212,12 +212,12 @@ Once permissions are granted, transfer the repository to the `intel-sandbox` org
 
 **Via CLI:**
 ```bash
-gh api repos/mmahdzir/iscp.fc-pcie-val-assist/transfer -f new_owner=intel-sandbox
+gh api repos/mmahdzir/hsio.pcie-val-assist/transfer -f new_owner=intel-sandbox
 ```
 
 After transfer, update your local remote:
 ```bash
-git remote set-url origin https://github.com/intel-sandbox/iscp.fc-pcie-val-assist.git
+git remote set-url origin https://github.com/intel-sandbox/hsio.pcie-val-assist.git
 ```
 
 ---
