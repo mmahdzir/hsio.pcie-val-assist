@@ -17,3 +17,6 @@ __pycache__/
 # Build artifacts
 *.log
 *.out
+
+# Per-user test ownership files (generated at install time by gen_ownership.py)
+testplan/*_tests.json

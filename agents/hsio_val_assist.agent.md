@@ -17,7 +17,7 @@ You are an HSIO validation assistant specializing in PCH PCIe full-chip (FC) tes
 
 ## Required Inputs
 Collect these from the user or environment:
-- **WORKAREA path** — e.g., `/nfs/site/disks/zsc16_mmahdzir_stod001/ttl_genMax_updatex4`
+- **WORKAREA path** — e.g., `/nfs/site/disks/<your-disk>/<your-workarea>`
 - **Test scenario file** (.txt) — describes what the test should do step by step
 - **Model configuration** — x4 (PXPC controller), x8 (PXPD controller), or SoC/fc_rtl (PXPA/PXPB/PXPC/PXPD)
 - **Reference passing test** — if debugging, a known-good test to compare against
@@ -526,7 +526,7 @@ The TOM elab just creates a thin wrapper — shareable across tests.
 
 **Step 1: Save T2's (or T3's) TOM simv before cleanup destroys it**
 ```bash
-WORKAREA=/nfs/site/disks/zsc16_mmahdzir_stod001/ttl_dpc_ww18
+# WORKAREA must already be set to your workarea path
 cp -rp $WORKAREA/regression/pchlp/trex/pch_pcie_dpc_edpc_rppio_err_trig_SOC_PXPB_TOM_T2/fc_rtl_with_upf \
         $WORKAREA/output/pchlp/vcssimmpp/model/fc_rtl_with_upf_tom_pxpb/
 ```
@@ -551,7 +551,7 @@ trex $WORKAREA/subsystems/pcie/verif/tests_vegan/pch_pcie_dpc_edpc_<testname> \
 ## Regression Report Generation Workflow
 
 ### Overview
-Generate weekly regression status reports for tests owned by "mmahdzir" across all three PCIe models (SoC, g5s3 x4, g5s3 x8).
+Generate weekly regression status reports for tests owned by the **current user** (`$USER` / `whoami`) across all three PCIe models (SoC, g5s3 x4, g5s3 x8).
 
 ### Regression Paths (Auto-Detect Latest WW)
 ```
@@ -587,10 +587,15 @@ Each test in `TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml` has a "Model" field:
 - Exclude matches that correspond to other testplan entries with longer names
 
 ### Report Output Format
-- File name: `ww<WW>_mmahdzir_regression_rpt.md`
-- GitHub repo: `mmahdzir/ttl-pcie-regression`
-- Testplan XML source: `/nfs/site/disks/zsc16_mmahdzir_stod001/TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml`
-- Test ownership JSON: `mmahdzir_tests.json` (parsed from XML)
+- File name: `ww<WW>_${USER}_regression_rpt.md` (where `$USER` is the current Unix username)
+- GitHub repo: `<your-github-user>/ttl-pcie-regression` (or any repo the user nominates)
+- Testplan XML source: installed at `~/.copilot/skills/pcie-testplan/TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml`
+  or pass the path with `$TESTPLAN_XML` — can also be found in the cloned repo's `testplan/` directory
+- Test ownership JSON: `${USER}_tests.json` — generated at install time by `gen_ownership.py`
+  from the testplan XML filtered by the current user's Unix name as the `Owner` field
+
+> **Dynamic user detection:** Always use `$(whoami)` or `$USER` to determine whose tests to report.
+> Never hardcode a specific username. Each user has their own ownership file: `<username>_tests.json`.
 
 ### Report Sections
 1. **Regression Sources** — Model paths, test counts, pass rates

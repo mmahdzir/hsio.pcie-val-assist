@@ -303,6 +303,26 @@ if [ -d "$TESTPLAN_SOURCE_DIR" ]; then
         fi
         cp -rf "$TESTPLAN_SOURCE_DIR"/. "$TESTPLAN_TARGET_DIR"/
         print_info "  ✓ Installed testplan data to: $TESTPLAN_TARGET_DIR"
+
+        # ── Generate per-user ownership JSON ──────────────────────────────
+        TESTPLAN_XML="$TESTPLAN_TARGET_DIR/TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml"
+        OWNERSHIP_JSON="$TESTPLAN_TARGET_DIR/${USER}_tests.json"
+        if [ -f "$TESTPLAN_XML" ] && command -v python3 &>/dev/null; then
+            print_info "Generating test ownership file for user '$USER'..."
+            python3 "$TESTPLAN_TARGET_DIR/gen_ownership.py" \
+                --user "$USER" \
+                --xml "$TESTPLAN_XML" \
+                --out "$OWNERSHIP_JSON" 2>&1 | sed 's/^/  /'
+            if [ -f "$OWNERSHIP_JSON" ]; then
+                print_success "  ✅ Ownership file: $OWNERSHIP_JSON"
+            else
+                print_warning "  Could not generate ownership file — run manually:"
+                print_info "    python3 $TESTPLAN_TARGET_DIR/gen_ownership.py"
+            fi
+        elif ! command -v python3 &>/dev/null; then
+            print_warning "  python3 not found — skipping ownership file generation"
+            print_info "    Run later: python3 $TESTPLAN_TARGET_DIR/gen_ownership.py"
+        fi
         TESTPLAN_INSTALLED=true
     else
         print_warning "Testplan directory is empty: $TESTPLAN_SOURCE_DIR"

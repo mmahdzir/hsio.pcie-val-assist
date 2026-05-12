@@ -146,21 +146,25 @@ The agent will:
 ```
 hsio.pcie-val-assist/
 ├── README.md                                    # This file
-├── install-agents.sh                            # One-click installer
+├── install-agents.sh                            # One-click installer (auto-generates per-user ownership JSON)
 ├── agents/
 │   └── hsio_val_assist.agent.md                 # Main agent definition
 ├── skills/
 │   └── grdlbuild/
 │       └── SKILL.md                             # grdlbuild build system reference
 ├── testplan/
-│   ├── TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml     # PCIe testplan
-│   └── mmahdzir_test_ownership.json             # Test ownership mapping
+│   ├── TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml     # Shared PCIe testplan (all owners)
+│   └── gen_ownership.py                         # Script: generate <user>_tests.json from XML
 ├── examples/
 │   ├── ww17_mmahdzir_regression_rpt.md          # Example regression report
 │   └── ww18_mmahdzir_regression_rpt.md          # Example regression report
 └── config/
     └── README.md                                # MCP configuration guide
 ```
+
+> **Note:** `<username>_tests.json` is generated **automatically at install time** by
+> `install-agents.sh` for the installing user. It is not committed to the repo because
+> it is user-specific data.
 
 ---
 
