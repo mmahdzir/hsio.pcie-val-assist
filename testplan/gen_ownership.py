@@ -45,8 +45,25 @@ def parse_args():
     return parser.parse_args()
 
 
+def parse_wordml_table(tbl, W):
+    """Parse a single WordML table into a key-value dict (test entry)."""
+    fields = {}
+    for tr in tbl.iter(f"{{{W}}}tr"):
+        cells = [
+            "".join(t.text or "" for t in tc.iter(f"{{{W}}}t")).strip()
+            for tc in tr.findall(f"{{{W}}}tc")
+        ]
+        # Only collect exactly 2-cell rows as key-value pairs; skip header/multi-col rows
+        if len(cells) == 2 and cells[0]:
+            key = cells[0].strip()
+            value = cells[1].strip()
+            if key not in fields:  # keep first occurrence only
+                fields[key] = value
+    return fields
+
+
 def extract_tests(xml_path, username):
-    """Parse testplan XML and return list of test dicts owned by username."""
+    """Parse testplan WordML and return list of test dicts owned by username."""
     if not os.path.isfile(xml_path):
         print(f"ERROR: Testplan XML not found: {xml_path}", file=sys.stderr)
         sys.exit(1)
@@ -54,41 +71,48 @@ def extract_tests(xml_path, username):
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
-    # Support both namespaced and non-namespaced XML
-    ns = {}
-    tag = root.tag
-    if "{" in tag:
-        ns_uri = tag[1:tag.index("}")]
-        ns = {"ns": ns_uri}
-        row_tag = "ns:Row"
+    # Detect WordML namespace
+    root_tag = root.tag
+    if "{" in root_tag:
+        W = root_tag[1:root_tag.index("}")]
     else:
-        row_tag = "Row"
+        W = "http://schemas.microsoft.com/office/word/2003/wordml"
 
     owned_tests = []
-    total_rows = 0
+    total_tables = 0
 
-    for row in root.iter(row_tag if ns else "Row"):
-        total_rows += 1
-        cells = {}
-        for cell in row:
-            local = cell.tag.split("}")[-1] if "}" in cell.tag else cell.tag
-            cells[local] = (cell.text or "").strip()
+    for tbl in root.iter(f"{{{W}}}tbl"):
+        fields = parse_wordml_table(tbl, W)
+        if not fields:
+            continue
+        total_tables += 1
 
-        owner = cells.get("Owner", "")
+        owner = fields.get("Owner", "").strip()
         if owner.lower() != username.lower():
             continue
 
         owned_tests.append({
-            "TestName": cells.get("TestName", cells.get("Test_Name", "")),
+            "SectionNumber": fields.get("SectionNumber", ""),
+            "SectionHeading": fields.get("SectionHeading", ""),
+            "Test_Name": fields.get("Test_Name", fields.get("TestName", "")),
+            "Test_Objective": fields.get("Test_Objective", ""),
+            "Base_Sequence": fields.get("Base_Sequence", ""),
+            "SOCMilestone": fields.get("SOCMilestone", ""),
+            "SOCMilestone_Reason": fields.get("SOCMilestone_Reason", ""),
+            "Model": fields.get("Model", ""),
+            "Model_Other": fields.get("Model_Other", ""),
+            "Priority": fields.get("Priority", ""),
+            "Environment": fields.get("Environment", ""),
+            "Regression_Type": fields.get("Regression_Type", ""),
+            "Test_Status": fields.get("Test_Status", ""),
             "Owner": owner,
-            "SOCMilestone": cells.get("SOCMilestone", cells.get("Milestone", "")),
-            "Model": cells.get("Model", ""),
-            "Model_Other": cells.get("Model_Other", ""),
-            "Status": cells.get("Status", ""),
-            "Description": cells.get("Description", cells.get("Scenario", "")),
+            "Owner_team": fields.get("Owner_team", ""),
+            "Plan_to_pass": fields.get("Plan_to_pass", ""),
+            "Simv_args": fields.get("Simv_args", ""),
+            "Release": fields.get("Release", ""),
         })
 
-    return owned_tests, total_rows
+    return owned_tests, total_tables
 
 
 def main():
@@ -102,12 +126,12 @@ def main():
     print(f"[gen_ownership] XML     : {args.xml}")
     print(f"[gen_ownership] Output  : {args.out}")
 
-    owned_tests, total_rows = extract_tests(args.xml, args.user)
+    owned_tests, total_tables = extract_tests(args.xml, args.user)
 
     output = {
         "user": args.user,
         "testplan_xml": os.path.basename(args.xml),
-        "total_tests_in_plan": total_rows,
+        "total_tables_in_plan": total_tables,
         "owned_count": len(owned_tests),
         "tests": owned_tests,
     }
@@ -116,7 +140,7 @@ def main():
         json.dump(output, f, indent=2)
 
     print(f"[gen_ownership] Found   : {len(owned_tests)} tests owned by '{args.user}' "
-          f"(out of {total_rows} total)")
+          f"(out of {total_tables} test tables)")
     print(f"[gen_ownership] Written : {args.out}")
 
 
