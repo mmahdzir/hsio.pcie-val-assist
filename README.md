@@ -147,6 +147,7 @@ The agent will:
 hsio.pcie-val-assist/
 ├── README.md                                    # This file
 ├── install-agents.sh                            # One-click installer (auto-generates per-user ownership JSON)
+├── update_agent.sh                              # Feedback / contribution / sync script
 ├── agents/
 │   └── hsio_val_assist.agent.md                 # Main agent definition
 ├── skills/
@@ -158,6 +159,9 @@ hsio.pcie-val-assist/
 ├── examples/
 │   ├── ww17_mmahdzir_regression_rpt.md          # Example regression report
 │   └── ww18_mmahdzir_regression_rpt.md          # Example regression report
+├── .github/
+│   ├── ISSUE_TEMPLATE/agent_feedback.md         # Structured feedback template
+│   └── PULL_REQUEST_TEMPLATE/                   # Knowledge contribution PR template
 └── config/
     └── README.md                                # MCP configuration guide
 ```
@@ -182,6 +186,44 @@ hsio.pcie-val-assist/
 - **PCH workarea** accessible (`WORKAREA` environment variable set)
 - **Python 3.6+** for testplan XML parsing
 - **Access to Intel NFS paths** for regression data and CRIF XML sources
+
+---
+
+## Contributing Back — Improve the Agent
+
+Every debug session is a learning opportunity. Use `update_agent.sh` to contribute findings back to the shared agent so **everyone benefits**.
+
+```bash
+# Report a bug or incorrect agent behavior
+./update_agent.sh --feedback
+
+# Submit a new knowledge snippet (debug pattern, build fix, register trick)
+./update_agent.sh --learn
+
+# Pull the latest agent after a contribution was merged
+./update_agent.sh --sync
+
+# See open issues and pending PRs
+./update_agent.sh --status
+```
+
+### Contribution Flow
+
+```
+Your debug session discovers something new
+          │
+          ▼
+  update_agent.sh --feedback     →  GitHub Issue (quick report)
+  update_agent.sh --learn        →  GitHub PR (structured snippet)
+          │
+          ▼
+  Maintainer reviews + merges
+          │
+          ▼
+  All users: ./update_agent.sh --sync  →  get updated agent
+```
+
+> **Tip:** Run `--sync` at the start of each work week to stay current.
 
 ---
 
