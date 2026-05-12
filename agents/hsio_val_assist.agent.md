@@ -339,6 +339,14 @@ In SoC TOM mode, after DPC triggers and LTSSM goes to `TRAIN_DISABLED`, the BFM 
   disable fork;
   ```
 
+#### Fix 3: cleanup_junk.csh Returns Exit 127 (Post-Run Infrastructure)
+After SoC TOM simulations, trex runs `-posth cleanup_junk.csh -model=fc_rtl_with_upf`. This script (`verif/tests/pch_tom_test/cleanup_junk.csh`) has a `#!/usr/intel/bin/perl` shebang. If `/usr/intel/bin/perl` is not in PATH during the post-run stage, it exits with 127.
+- **Symptom**: "Command `cleanup_junk.csh -model=fc_rtl_with_upf` returned exit status 127", trex reports overall FAIL
+- **Impact**: Cosmetic — the **simulation itself PASSES** (check "Postmortem status is: PASS" in launch log). The model directory is not cleaned up and `.rpt` may not be writable.
+- **How to confirm sim passed despite trex FAIL**: `grep "Postmortem status" <test_launch.log>` — if it says PASS, ignore the trex infrastructure failure
+- **Root cause**: The `posth` stage runs in a limited environment where `/usr/intel/bin/perl` is not resolvable
+- **Workaround**: Accept the trex FAIL as infrastructure noise; the sim result is valid. If re-running, the model dir from the previous run may still exist at `regression/pchlp/trex/<testname>/fc_rtl_with_upf/`
+
 ### Useful Grep Patterns
 ```bash
 # Find DPC-related events
