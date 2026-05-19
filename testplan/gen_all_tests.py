@@ -1,146 +1,78 @@
 #!/usr/bin/env python3
-"""
-gen_all_tests.py — Generate an all-user test JSON from the PCIe testplan XML.
+"""Generate all_tests.json for all owners from the PCIe testplan XML.
 
 Usage:
-    python3 gen_all_tests.py [--xml <testplan.xml>] [--out <output.json>]
+    python3 gen_all_tests.py TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml
 
-Defaults:
-    --xml   : TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml (same directory as this script)
-    --out   : all_tests.json (same directory as this script)
-
-The generated JSON contains ALL test entries grouped by owner. The agent uses
-this to answer per-user queries by filtering on $USER at runtime — no need to
-regenerate per person.
-
-Example agent usage:
-    import json, os
-    data = json.load(open('testplan/all_tests.json'))
-    user = os.environ.get('USER', '')
-    my_tests = data['by_owner'].get(user, [])
-    val08 = [t for t in my_tests if 'VAL0P8' in t.get('SOCMilestone', '')]
+Outputs all_tests.json in the same directory unless --out is provided.
 """
 
 import argparse
 import json
-import os
-import sys
-import datetime
-import xml.etree.ElementTree as ET
 from collections import defaultdict
+from pathlib import Path
+import xml.etree.ElementTree as ET
 
 
-def parse_args():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    default_xml = os.path.join(script_dir, "TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml")
-    parser = argparse.ArgumentParser(
-        description="Generate all-user test JSON from PCIe testplan XML."
-    )
-    parser.add_argument("--xml", default=default_xml,
-                        help="Path to testplan XML (default: TTLPCDH...xml alongside this script)")
-    parser.add_argument("--out", default=os.path.join(script_dir, "all_tests.json"),
-                        help="Output JSON path (default: all_tests.json alongside this script)")
-    return parser.parse_args()
+def clean_braces(text: str) -> str:
+    text = (text or '').strip()
+    if text.startswith('{') and text.endswith('}'):
+        text = text[1:-1]
+    return text.strip()
 
 
-def parse_wordml_table(tbl, W):
-    """Parse a single WordML w:tbl into a key-value dict."""
+def parse_wordml_table(tbl, ns: str):
     fields = {}
-    for tr in tbl.iter(f"{{{W}}}tr"):
-        cells = [
-            "".join(t.text or "" for t in tc.iter(f"{{{W}}}t")).strip()
-            for tc in tr.findall(f"{{{W}}}tc")
-        ]
-        if len(cells) == 2 and cells[0]:
-            key = cells[0].strip()
-            if key not in fields:
-                fields[key] = cells[1].strip()
+    for tr in tbl.iter(f'{{{ns}}}tr'):
+        cells = [''.join(t.text or '' for t in tc.iter(f'{{{ns}}}t')).strip() for tc in tr.findall(f'{{{ns}}}tc')]
+        if len(cells) == 2 and cells[0] and cells[0] not in fields:
+            fields[cells[0].strip()] = cells[1].strip()
     return fields
 
 
-def extract_all_tests(xml_path):
-    if not os.path.isfile(xml_path):
-        print(f"ERROR: XML not found: {xml_path}", file=sys.stderr)
-        sys.exit(1)
-
+def extract_all_tests(xml_path: Path):
     tree = ET.parse(xml_path)
     root = tree.getroot()
-    root_tag = root.tag
-    W = root_tag[1:root_tag.index("}")] if "{" in root_tag \
-        else "http://schemas.microsoft.com/office/word/2003/wordml"
-
+    ns = root.tag[1:root.tag.index('}')] if '{' in root.tag else 'http://schemas.microsoft.com/office/word/2003/wordml'
+    by_owner = defaultdict(list)
     all_tests = []
-    for tbl in root.iter(f"{{{W}}}tbl"):
-        fields = parse_wordml_table(tbl, W)
-        if not fields:
+    for tbl in root.iter(f'{{{ns}}}tbl'):
+        fields = parse_wordml_table(tbl, ns)
+        test_name = fields.get('Test_Name', fields.get('TestName', '')).strip()
+        if not test_name.startswith('pch_'):
             continue
-        test_name = fields.get("Test_Name", fields.get("TestName", "")).strip()
-        if not test_name:
-            continue
-        entry = {
-            "Test_Name":          test_name,
-            "Owner":              fields.get("Owner", "").strip(),
-            "SOCMilestone":       fields.get("SOCMilestone", "").strip(),
-            "Model":              fields.get("Model", "").strip(),
-            "Model_Other":        fields.get("Model_Other", "").strip(),
-            "Priority":           fields.get("Priority", "").strip(),
-            "SectionNumber":      fields.get("SectionNumber", "").strip(),
-            "SectionHeading":     fields.get("SectionHeading", "").strip(),
-            "Regression_Type":    fields.get("Regression_Type", "").strip(),
-            "Test_Status":        fields.get("Test_Status", "").strip(),
-            "Base_Sequence":      fields.get("Base_Sequence", "").strip(),
-            "Simv_args":          fields.get("Simv_args", "").strip(),
-            "Plan_to_pass":       fields.get("Plan_to_pass", "").strip(),
-            "Owner_team":         fields.get("Owner_team", "").strip(),
+        row = {
+            'test_name': test_name,
+            'owner': fields.get('Owner', '').strip(),
+            'soc_milestone': clean_braces(fields.get('SOCMilestone', '')) or 'UNSPECIFIED',
+            'model': clean_braces(fields.get('Model', '')),
+            'section': fields.get('SectionHeading', '').strip() or fields.get('SectionNumber', '').strip(),
         }
-        all_tests.append(entry)
-    return all_tests, W
+        all_tests.append(row)
+        by_owner[row['owner']].append({'test_name': row['test_name'], 'soc_milestone': row['soc_milestone'], 'model': row['model'], 'section': row['section']})
+    all_tests.sort(key=lambda item: (item['owner'], item['soc_milestone'], item['test_name']))
+    return {'metadata': {'generated': 'WW-17', 'source': str(xml_path), 'total_tests': len(all_tests)}, 'by_owner': {owner: sorted(tests, key=lambda item: item['test_name']) for owner, tests in sorted(by_owner.items())}, 'all_tests': all_tests}
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Generate all_tests.json for all owners from PCIe testplan XML.')
+    parser.add_argument('xml', help='Path to TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml')
+    parser.add_argument('--out', help='Optional output JSON path. Defaults to all_tests.json beside the XML file.')
+    return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    print(f"[gen_all_tests] XML    : {args.xml}")
-    print(f"[gen_all_tests] Output : {args.out}")
-
-    all_tests, _ = extract_all_tests(args.xml)
-
-    # Group by owner
-    by_owner = defaultdict(list)
-    for t in all_tests:
-        owner = t["Owner"] or "unassigned"
-        by_owner[owner].append(t)
-
-    # Milestone summary
-    from collections import Counter
-    milestone_counts = Counter(t["SOCMilestone"] for t in all_tests)
-    owner_counts = Counter(t["Owner"] or "unassigned" for t in all_tests)
-
-    output = {
-        "metadata": {
-            "generated":    datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "source":       os.path.basename(args.xml),
-            "total_tests":  len(all_tests),
-            "owners":       sorted(by_owner.keys()),
-            "milestones":   dict(milestone_counts),
-            "owner_counts": dict(owner_counts),
-            "usage": (
-                "Filter by current user at runtime: "
-                "data['by_owner'].get(os.environ.get('USER',''), [])"
-            ),
-        },
-        "by_owner": {k: v for k, v in sorted(by_owner.items())},
-        "all_tests": all_tests,
-    }
-
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    with open(args.out, "w") as f:
-        json.dump(output, f, indent=2)
-
-    print(f"[gen_all_tests] Total  : {len(all_tests)} tests")
-    for owner, tests in sorted(by_owner.items()):
-        print(f"  {owner:20s}: {len(tests):3d} tests")
-    print(f"[gen_all_tests] Written: {args.out}")
+    xml_path = Path(args.xml).expanduser().resolve()
+    if not xml_path.is_file():
+        raise SystemExit(f'ERROR: Testplan XML not found: {xml_path}')
+    out_path = Path(args.out).expanduser().resolve() if args.out else xml_path.with_name('all_tests.json')
+    payload = extract_all_tests(xml_path)
+    out_path.write_text(json.dumps(payload, indent=2))
+    print(f'[gen_all_tests] XML    : {xml_path}')
+    print(f'[gen_all_tests] Output : {out_path}')
+    print(f'[gen_all_tests] Tests  : {payload["metadata"]["total_tests"]}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
