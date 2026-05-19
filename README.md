@@ -138,6 +138,7 @@ The agent will:
 2. Match tests to models (x4, x8, SoC)
 3. Check pass/fail status for each test
 4. Generate a structured markdown report with ownership, status, and notes
+5. example https://github.com/mmahdzir/hsio.pcie-val-assist/blob/main/examples/ww17_regression_report.html
 
 ---
 
