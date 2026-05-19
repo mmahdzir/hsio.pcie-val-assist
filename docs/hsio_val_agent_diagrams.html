@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HSIO Val Assistant — Agent Workflow Diagrams</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --card2: #1c2128;
+      --border: #30363d;
+      --blue: #4a9eff;
+      --teal: #2dd4bf;
+      --orange: #fb923c;
+      --purple: #c084fc;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --green: #4ade80;
+      --pink: #f472b6;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --mono: 'Consolas', 'Courier New', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ─── HEADER ─── */
+    .hdr {
+      background: linear-gradient(135deg, #0d1b2e 0%, #161b22 100%);
+      border-bottom: 2px solid var(--blue);
+      padding: 18px 32px;
+      position: sticky; top: 0; z-index: 200;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .hdr-logo { font-size: 26px; }
+    .hdr-title { font-size: 17px; font-weight: 700; color: var(--blue); letter-spacing: .3px; }
+    .hdr-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ─── TABS ─── */
+    .tabs { display: flex; gap: 2px; padding: 0 32px; background: #0d1b2e; border-bottom: 1px solid var(--border); position: sticky; top: 62px; z-index: 190; }
+    .tab { padding: 12px 22px; cursor: pointer; font-size: 13px; font-weight: 500; border-radius: 6px 6px 0 0; border: 1px solid transparent; border-bottom: none; color: var(--muted); transition: .15s; user-select: none; display: flex; align-items: center; gap: 7px; }
+    .tab:hover { background: var(--card); color: var(--text); }
+    .tab.active { background: var(--card); border-color: var(--border); border-bottom-color: var(--card); }
+    .tab.t1.active { color: var(--teal); }
+    .tab.t2.active { color: var(--orange); }
+    .tab.t3.active { color: var(--purple); }
+
+    /* ─── CONTENT ─── */
+    .content { padding: 28px 32px; max-width: 1440px; margin: 0 auto; }
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ─── DIAGRAM HEADER ─── */
+    .dh { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+    .dh-num { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+    .dh-title { font-size: 20px; font-weight: 700; }
+    .dh-desc { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+    /* ─── LEGEND ─── */
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 22px; }
+    .li { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+    .ld { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ─── FLOW ─── */
+    .flow { display: flex; flex-direction: column; gap: 0; }
+
+    /* ─── LANE ─── */
+    .lane { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--card); }
+    .lh { padding: 9px 20px; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+    .lb { padding: 18px 20px; }
+    .lh.yellow { background: rgba(251,191,36,.12); color: var(--yellow); }
+    .lh.blue   { background: rgba(74,158,255,.12); color: var(--blue); }
+    .lh.purple { background: rgba(192,132,252,.12); color: var(--purple); }
+    .lh.teal   { background: rgba(45,212,191,.12); color: var(--teal); }
+    .lh.orange { background: rgba(251,146,60,.12); color: var(--orange); }
+    .lh.green  { background: rgba(74,222,128,.12); color: var(--green); }
+    .lh.red    { background: rgba(248,113,113,.12); color: var(--red); }
+    .lh.pink   { background: rgba(244,114,182,.12); color: var(--pink); }
+
+    /* ─── ARROW ─── */
+    .arr { display: flex; align-items: center; justify-content: center; height: 38px; color: var(--muted); font-size: 18px; flex-direction: column; gap: 0; position: relative; }
+    .arr::before { content: ''; position: absolute; top: 0; bottom: 18px; width: 2px; background: linear-gradient(var(--border), transparent); left: 50%; }
+    .arr-lbl { font-size: 9px; color: var(--muted); letter-spacing: .5px; }
+
+    /* ─── NODE ─── */
+    .node { border-radius: 8px; padding: 14px 16px; border: 1px solid; }
+    .n-blue   { background: rgba(74,158,255,.07); border-color: rgba(74,158,255,.3); }
+    .n-teal   { background: rgba(45,212,191,.07); border-color: rgba(45,212,191,.3); }
+    .n-orange { background: rgba(251,146,60,.07); border-color: rgba(251,146,60,.3); }
+    .n-purple { background: rgba(192,132,252,.07); border-color: rgba(192,132,252,.3); }
+    .n-yellow { background: rgba(251,191,36,.07); border-color: rgba(251,191,36,.3); }
+    .n-red    { background: rgba(248,113,113,.07); border-color: rgba(248,113,113,.3); }
+    .n-green  { background: rgba(74,222,128,.07); border-color: rgba(74,222,128,.3); }
+    .n-pink   { background: rgba(244,114,182,.07); border-color: rgba(244,114,182,.3); }
+
+    /* ─── TEXT ─── */
+    .nt { font-weight: 600; font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+    .nd { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .np { font-family: var(--mono); font-size: 10.5px; padding: 4px 8px; border-radius: 4px; background: rgba(0,0,0,.4); margin-top: 5px; color: var(--teal); word-break: break-all; display: block; }
+    .np+.np { margin-top: 3px; }
+
+    /* ─── GRIDS ─── */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .g5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+
+    /* ─── CHECKLIST ─── */
+    .cl { list-style: none; margin-top: 8px; }
+    .cl li { font-size: 11.5px; color: var(--muted); padding: 2px 0; display: flex; align-items: flex-start; gap: 6px; }
+    .cl li::before { content: '▸'; color: var(--teal); flex-shrink: 0; margin-top: 1px; }
+    .cl li .c { font-family: var(--mono); font-size: 10.5px; color: var(--orange); }
+    .cl li .h { color: var(--text); }
+
+    /* ─── BADGES ─── */
+    .badge { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 9.5px; font-weight: 700; letter-spacing: .4px; }
+    .b-blue   { background: rgba(74,158,255,.18); color: var(--blue); border: 1px solid rgba(74,158,255,.35); }
+    .b-teal   { background: rgba(45,212,191,.18); color: var(--teal); border: 1px solid rgba(45,212,191,.35); }
+    .b-orange { background: rgba(251,146,60,.18); color: var(--orange); border: 1px solid rgba(251,146,60,.35); }
+    .b-purple { background: rgba(192,132,252,.18); color: var(--purple); border: 1px solid rgba(192,132,252,.35); }
+    .b-yellow { background: rgba(251,191,36,.18); color: var(--yellow); border: 1px solid rgba(251,191,36,.35); }
+    .b-red    { background: rgba(248,113,113,.18); color: var(--red); border: 1px solid rgba(248,113,113,.35); }
+    .b-green  { background: rgba(74,222,128,.18); color: var(--green); border: 1px solid rgba(74,222,128,.35); }
+
+    /* ─── EXAMPLE BOX ─── */
+    .ex { border: 1px dashed rgba(251,191,36,.4); border-radius: 6px; padding: 10px 12px; background: rgba(251,191,36,.04); margin-top: 10px; }
+    .ex-lbl { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; color: var(--yellow); text-transform: uppercase; margin-bottom: 5px; }
+
+    /* ─── BRANCH CARDS ─── */
+    .brc { border-radius: 8px; padding: 14px; border: 1px solid var(--border); }
+
+    /* ─── DIVIDER ─── */
+    .div { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+    /* ─── INPUT COLUMNS ─── */
+    .ic { border-radius: 8px; padding: 14px; border: 1px solid; height: 100%; }
+    .ic-title { font-size: 11.5px; font-weight: 700; margin-bottom: 9px; display: flex; align-items: center; gap: 6px; }
+
+    /* ─── DECISION DIAMOND ─── */
+    .decision-row { display: flex; align-items: center; justify-content: center; padding: 8px 0 14px; }
+    .diamond-wrap { text-align: center; }
+    .diamond { width: 0; height: 0; border-left: 60px solid transparent; border-right: 60px solid transparent; margin: 0 auto; position: relative; }
+    .diamond-top { border-bottom: 38px solid; }
+    .diamond-bot { border-top: 38px solid; margin-top: 0; }
+    .diamond-lbl { position: absolute; font-size: 10px; font-weight: 600; white-space: nowrap; left: 50%; transform: translateX(-50%); }
+    .diamond-lbl.top-lbl { top: 8px; }
+    .diamond-lbl.bot-lbl { bottom: 8px; }
+
+    /* ─── CONNECTOR LINES FOR BRANCHES ─── */
+    .branch-connector { display: flex; justify-content: space-around; padding: 0 10%; margin-bottom: -1px; }
+    .bc-line { flex: 1; border-top: 2px solid var(--border); border-left: 2px solid var(--border); border-right: 2px solid var(--border); height: 16px; border-radius: 2px 2px 0 0; }
+
+    /* ─── STATUS INDICATORS ─── */
+    .status-pass { color: var(--green); font-weight: 700; }
+    .status-fail { color: var(--red); font-weight: 700; }
+    .status-warn { color: var(--yellow); font-weight: 700; }
+
+    /* ─── STEP NUMBER ─── */
+    .sn { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; background: var(--border); flex-shrink: 0; }
+
+    /* ─── INLINE STEP FLOW ─── */
+    .inline-flow { display: flex; align-items: flex-start; gap: 0; }
+    .ifl-step { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .ifl-box { width: 100%; border-radius: 6px; padding: 10px; text-align: center; font-size: 11px; border: 1px solid var(--border); background: var(--card2); }
+    .ifl-arrow { display: flex; align-items: center; padding-top: 22px; color: var(--muted); font-size: 14px; padding-left: 4px; padding-right: 4px; }
+
+    /* ─── COMPARISON TABLE ─── */
+    table.ctbl { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    table.ctbl th { background: var(--card2); padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    table.ctbl td { padding: 7px 10px; border-bottom: 1px solid rgba(48,54,61,.5); vertical-align: top; }
+    table.ctbl tr:last-child td { border-bottom: none; }
+    table.ctbl td.mono { font-family: var(--mono); font-size: 10.5px; color: var(--orange); }
+
+    /* ─── PHASE TIMELINE ─── */
+    .timeline { position: relative; padding-left: 28px; }
+    .tl-item { position: relative; padding-bottom: 14px; padding-left: 16px; }
+    .tl-item::before { content: ''; position: absolute; left: -20px; top: 5px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid; }
+    .tl-item::after { content: ''; position: absolute; left: -16px; top: 15px; width: 2px; bottom: 0; background: var(--border); }
+    .tl-item:last-child::after { display: none; }
+    .tl-item.c-blue::before { border-color: var(--blue); background: rgba(74,158,255,.2); }
+    .tl-item.c-teal::before { border-color: var(--teal); background: rgba(45,212,191,.2); }
+    .tl-item.c-orange::before { border-color: var(--orange); background: rgba(251,146,60,.2); }
+    .tl-item.c-green::before { border-color: var(--green); background: rgba(74,222,128,.2); }
+    .tl-item.c-red::before { border-color: var(--red); background: rgba(248,113,113,.2); }
+    .tl-item.c-purple::before { border-color: var(--purple); background: rgba(192,132,252,.2); }
+    .tl-title { font-size: 12px; font-weight: 600; }
+    .tl-detail { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    @media (max-width: 1100px) {
+      .g3 { grid-template-columns: 1fr; }
+      .g4 { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  HEADER                                                    -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="hdr">
+  <div class="hdr-logo">🔷</div>
+  <div>
+    <div class="hdr-title">HSIO Validation Assistant — Agent Workflow Structure Diagrams</div>
+    <div class="hdr-sub">PCH PCIe UVM Validation · Technical Reference for Validators · Repo: mmahdzir/hsio.pcie-val-assist</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  TABS                                                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="tabs">
+  <div class="tab t1 active" onclick="show(0)">🧪 Objective 1 · Create New Test</div>
+  <div class="tab t2" onclick="show(1)">🔍 Objective 2 · Debug a Failure</div>
+  <div class="tab t3" onclick="show(2)">📊 Objective 3 · Regression Report</div>
+</div>
+
+<div class="content">
+
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
+<!--  DIAGRAM 1 — CREATE NEW TEST                                                  -->
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
+<div class="section active" id="tab0">
+
+  <div class="dh">
+    <div class="dh-num" style="background:rgba(45,212,191,.15);color:var(--teal);border:2px solid var(--teal)">1</div>
+    <div>
+      <div class="dh-title" style="color:var(--teal)">Create New UVM Test</div>
+      <div class="dh-desc">From test scenario document → compiled, validated UVM test in model.<br>
+        Example: <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">pch_pcie_acs_lvl2</code> &nbsp;|&nbsp;
+        Agent reads scenario → detects model → gathers 3 inputs → generates code → builds → validates.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:var(--yellow)"></div>Trigger / Input document</div>
+    <div class="li"><div class="ld" style="background:var(--blue)"></div>Context detection / decision</div>
+    <div class="li"><div class="ld" style="background:var(--purple)"></div>Knowledge gathering (3 parallel inputs)</div>
+    <div class="li"><div class="ld" style="background:var(--teal)"></div>Code generation</div>
+    <div class="li"><div class="ld" style="background:var(--orange)"></div>Build &amp; elaborate</div>
+    <div class="li"><div class="ld" style="background:var(--green)"></div>Validate &amp; output</div>
+    <div class="li"><div class="ld" style="background:rgba(251,191,36,.3);border:1px dashed var(--yellow)"></div>Concrete example</div>
+  </div>
+
+  <div class="flow">
+
+    <!-- ── STAGE 1: TRIGGER ── -->
+    <div class="lane">
+      <div class="lh yellow">📋 Stage 1 — Trigger</div>
+      <div class="lb">
+        <div class="node n-yellow">
+          <div class="nt" style="color:var(--yellow)">📄 Read Test Scenario Document</div>
+          <div class="g2" style="gap:18px">
+            <div>
+              <div class="nd">Source — repo: <span style="color:var(--blue)">mmahdzir/hsio.pcie-val-assist</span></div>
+              <span class="np">testplan/&lt;test_name&gt;.txt</span>
+              <div class="nd" style="margin-top:8px">Plain-text, step-by-step format. Every register config and check must be implemented — no line can be skipped.</div>
+              <ul class="cl" style="margin-top:8px">
+                <li>Parse trigger method (poisoned TLP / BFM UR / CfgWr / etc.)</li>
+                <li>Identify all registers to configure + expected values</li>
+                <li>Identify expected outcomes and scoreboard checks</li>
+                <li>Identify DUT: PCIe controller, error path, and phase sequence</li>
+              </ul>
+            </div>
+            <div class="ex">
+              <div class="ex-lbl">⚡ Example: ACS Level 2</div>
+              <span class="np">testplan/pch_pcie_acs_lvl2.txt</span>
+              <div class="nd" style="margin-top:6px">Access Control Services validation — tests ACS capability register settings and source validation enforcement on upstream TLPs.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">scenario parsed</div></div>
+
+    <!-- ── STAGE 2: MODEL DETECTION ── -->
+    <div class="lane">
+      <div class="lh blue">🔎 Stage 2 — Context Detection: Identify Model &amp; Configuration</div>
+      <div class="lb">
+        <div class="node n-blue" style="margin-bottom:14px">
+          <div class="nt" style="color:var(--blue)">Detection Signals</div>
+          <div class="g2" style="gap:16px">
+            <div>
+              <div class="nd" style="font-weight:600;color:var(--blue);margin-bottom:4px">① Workarea directory path</div>
+              <span class="np">/nfs/site/disks/…/ttl_genMax_updatex4  →  g5s3 x4</span>
+              <span class="np">/nfs/site/disks/…/ttl_*updatex8        →  g5s3 x8</span>
+              <span class="np">/nfs/site/disks/…/ttl_*soc / ttl_dpc_* →  SoC</span>
+            </div>
+            <div>
+              <div class="nd" style="font-weight:600;color:var(--blue);margin-bottom:4px">② Git branch + touch files</div>
+              <span class="np">git branch --show-current</span>
+              <span class="np">output/grdlbuild/.flowMgr/pchlp.elab_*.touch</span>
+              <div class="nd" style="margin-top:6px">Cross-verify: <span class="c">elab_s3_with_upf</span> vs <span class="c">elab_fc_rtl_with_upf</span> touch file presence</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="g3">
+          <div class="brc" style="border-color:rgba(74,158,255,.4);background:rgba(74,158,255,.05)">
+            <div class="nt" style="color:var(--blue)">🔵 g5s3 x4</div>
+            <table class="ctbl">
+              <tr><td>Controller</td><td class="mono">PXPC</td></tr>
+              <tr><td>PHY</td><td class="mono">par2x4g5phy (4 lanes)</td></tr>
+              <tr><td>Elab target</td><td class="mono">elab_s3_with_upf</td></tr>
+              <tr><td>Simv</td><td class="mono">s3_with_upf.simv</td></tr>
+              <tr><td>Bifurcation</td><td>2×2 or 1×4</td></tr>
+              <tr><td>Run time</td><td>~30–45 min</td></tr>
+              <tr><td>Memory</td><td>~5 GB</td></tr>
+            </table>
+            <div class="ex" style="margin-top:10px">
+              <div class="ex-lbl">Current workarea</div>
+              <div class="nd" style="font-size:11px"><span class="c">ttl_genMax_updatex4</span> → this model</div>
+            </div>
+          </div>
+
+          <div class="brc" style="border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.05)">
+            <div class="nt" style="color:var(--teal)">🟢 g5s3 x8</div>
+            <table class="ctbl">
+              <tr><td>Controller</td><td class="mono">PXPD</td></tr>
+              <tr><td>PHY</td><td class="mono">par2x8g5phy (8 lanes)</td></tr>
+              <tr><td>Elab target</td><td class="mono">elab_s3_with_upf</td></tr>
+              <tr><td>Simv</td><td class="mono">s3_with_upf.simv</td></tr>
+              <tr><td>Bifurcation</td><td>2×4 or 1×8</td></tr>
+              <tr><td>Run time</td><td>~60–80 min</td></tr>
+              <tr><td>Multi-port</td><td>Add <span class="c">return;</span> after port 0</td></tr>
+            </table>
+          </div>
+
+          <div class="brc" style="border-color:rgba(192,132,252,.4);background:rgba(192,132,252,.05)">
+            <div class="nt" style="color:var(--purple)">🟣 SoC fc_rtl_with_upf</div>
+            <table class="ctbl">
+              <tr><td>Controllers</td><td class="mono">PXPA / PXPB / PXPC / PXPD</td></tr>
+              <tr><td>Elab target</td><td class="mono">elab_fc_rtl_with_upf</td></tr>
+              <tr><td>Simv</td><td class="mono">fc_rtl_with_upf.simv</td></tr>
+              <tr><td>Boot mode</td><td><span class="badge b-red">TOM mandatory</span></td></tr>
+              <tr><td>Run time</td><td>~20–25 h (boot ~12 h)</td></tr>
+              <tr><td>Memory</td><td>~37 GB (TOM)</td></tr>
+              <tr><td>API change</td><td><span class="c">GetTxs()</span> not <span class="c">PIBAItems</span></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">model identified</div></div>
+
+    <!-- ── STAGE 3: KNOWLEDGE GATHERING ── -->
+    <div class="lane">
+      <div class="lh purple">🧠 Stage 3 — Knowledge Gathering: 3 Parallel Inputs</div>
+      <div class="lb">
+        <div class="g3">
+
+          <!-- INPUT 1 -->
+          <div class="ic" style="border-color:rgba(74,158,255,.35);background:rgba(74,158,255,.05)">
+            <div class="ic-title" style="color:var(--blue)">📁 Input 1 · Model Structure</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Explore the verif tree in the current workarea:</div>
+            <span class="np">$WORKAREA/subsystems/pcie/verif/</span>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;margin-bottom:4px">Key paths explored:</div>
+            <ul class="cl">
+              <li><span class="c">tests_vegan/</span> — existing test classes as reference</li>
+              <li><span class="c">seqlib_vegan/</span> — sequence library</li>
+              <li><span class="c">pch_pcie_base_seq.svh</span> — available common tasks</li>
+              <li><span class="c">pch_pcie_seqlib.inc</span> — seq registration list</li>
+              <li><span class="c">pch_pcie_tests.inc</span> — test registration list</li>
+              <li><span class="c">PXPC_crif.xml</span> — register spec (RW/RO/RW1C)</li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px">Agent learns: port iteration pattern, available base tasks, register access macros, similar test to reuse as template</div>
+            <div class="ex">
+              <div class="ex-lbl">ACS lookup</div>
+              <span class="np">pch_pcie_acs_lvl2_seq.svh</span>
+              <div class="nd" style="font-size:11px;margin-top:4px">Copy port loop from base_seq, reuse similar reg write pattern</div>
+            </div>
+          </div>
+
+          <!-- INPUT 2 -->
+          <div class="ic" style="border-color:rgba(251,146,60,.35);background:rgba(251,146,60,.05)">
+            <div class="ic-title" style="color:var(--orange)">📈 Input 2 · Regression Examples</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Live regression — how existing tests run, pass rates, expected log patterns:</div>
+            <div class="nd" style="font-size:10px;font-weight:600;color:var(--orange);margin-bottom:3px">g5s3 x4:</div>
+            <span class="np">/nfs/site/disks/zsc16_ttlpcd_00157/g5s3_ttlpcdh_func/<br>pcieg5s3_hsphyX4-ssnip_rtl_zsc16-26ww*/pchlp</span>
+            <div class="nd" style="font-size:10px;font-weight:600;color:var(--teal);margin:7px 0 3px">g5s3 x8:</div>
+            <span class="np">/nfs/site/disks/zsc16_ttlpcd_00157/g5s3_ttlpcdh_func/<br>pcieg5s3_hsphyX8-ssnip_rtl_zsc16-26ww*/pchlp</span>
+            <div class="nd" style="font-size:10px;font-weight:600;color:var(--purple);margin:7px 0 3px">SoC:</div>
+            <span class="np">/nfs/site/disks/zsc16_ttlpcd_00163/fc_ttlpcdh_bconfig_func/<br>pcd-ttl-h-main-26ww*/pchlp</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Pass/fail rates for similar tests</li>
+              <li>Expected PCIE_TEST_INFO log messages</li>
+              <li>TLP tracker patterns from passing runs</li>
+              <li>Typical simulation times per test type</li>
+              <li>Common UVM_ERROR patterns (SBR noise in SoC)</li>
+            </ul>
+            <div class="ex">
+              <div class="ex-lbl">ACS regression lookup</div>
+              <div class="nd" style="font-size:11px">Find acs_lvl2 passing run → inspect <span class="c">postmortem.log</span> + <span class="c">PCIe0_0_trk.out</span></div>
+            </div>
+          </div>
+
+          <!-- INPUT 3 -->
+          <div class="ic" style="border-color:rgba(192,132,252,.35);background:rgba(192,132,252,.05)">
+            <div class="ic-title" style="color:var(--purple)">🤖 Input 3 · Agent Memory</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Knowledge recorded from past debug sessions and test creation runs:</div>
+            <hr class="div">
+            <ul class="cl">
+              <li>DPC register config chain (13 registers in order)</li>
+              <li>SoC-specific fixes: <span class="c">PIBAItems → GetTxs()</span></li>
+              <li>SoC BFM hang fix: <span class="c">fork-join_any</span> 20 µs timeout</li>
+              <li>RW vs RO vs RW1C access patterns</li>
+              <li>AERPR must use sideband (not primary) access</li>
+              <li>AER → DPC error trigger chain documentation</li>
+              <li>X8 port 0-only rule: <span class="c">return;</span> after COMPLETE</li>
+              <li>STRPFUSECFG for softstrap registers</li>
+              <li><span class="c">DataCoherencyChk=0</span> for error-path traffic</li>
+              <li>cleanup_junk.csh exit-127 is cosmetic (sim still passes)</li>
+            </ul>
+            <div class="ex">
+              <div class="ex-lbl">ACS recall</div>
+              <div class="nd" style="font-size:11px">ACS capability register: check CRIF for RW/RO, apply sideband path if softstrap, use correct macro</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">knowledge ready</div></div>
+
+    <!-- ── STAGE 4: CODE GENERATION ── -->
+    <div class="lane">
+      <div class="lh teal">⚙️ Stage 4 — Code Generation: Create 4 File Artifacts</div>
+      <div class="lb">
+        <div class="g2" style="gap:16px">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="node n-teal">
+              <div class="nt" style="color:var(--teal)">📝 Sequence File</div>
+              <span class="np">subsystems/pcie/verif/common/seqlib_vegan/&lt;testname&gt;_seq.svh</span>
+              <hr class="div">
+              <ul class="cl">
+                <li>Extend <span class="c">pch_pcie_base_seq</span></li>
+                <li>Full port iteration loop (<span class="c">PCH_MIN_VAL_MODEL</span> guards)</li>
+                <li>Call base tasks: <span class="c">dpc_configure_base_regs()</span>, etc.</li>
+                <li>Phase-by-phase implementation from scenario .txt</li>
+                <li>Apply model-specific fixes (SoC fork timeout, x8 return)</li>
+                <li>Use correct macros: <span class="c">pch_PCIE_REG_SET</span> / <span class="c">pch_PCIE_REG_WRITE</span></li>
+                <li>Use sideband for RO registers: <span class="c">pch_PCIE_REG_MEM_WRITE</span></li>
+              </ul>
+              <div class="ex">
+                <div class="ex-lbl">Example</div>
+                <span class="np">pch_pcie_acs_lvl2_seq.svh</span>
+                <div class="nd" style="font-size:11px;margin-top:4px"><span class="c">class pch_pcie_acs_lvl2_seq extends pch_pcie_base_seq;</span></div>
+              </div>
+            </div>
+
+            <div class="node n-teal">
+              <div class="nt" style="color:var(--teal)">🔗 Update Include Files</div>
+              <span class="np">pch_pcie_seqlib.inc  →  add `include for new sequence</span>
+              <span class="np">pch_pcie_tests.inc   →  add `include for new test class</span>
+              <div class="nd" style="margin-top:6px;font-size:11px">⚠️ Missing includes = compile error. Both files must be updated.</div>
+            </div>
+          </div>
+
+          <div class="node n-teal" style="height:100%">
+            <div class="nt" style="color:var(--teal)">🏷️ Test Class File</div>
+            <span class="np">subsystems/pcie/verif/tests_vegan/&lt;testname&gt;/&lt;testname&gt;.svh</span>
+            <hr class="div">
+            <div class="nd" style="font-size:11.5px">Minimal boilerplate — the test class just wires up the sequence:</div>
+            <div style="margin-top:10px;padding:12px;background:rgba(0,0,0,.4);border-radius:6px;font-family:var(--mono);font-size:11px;line-height:1.7;color:#cdd9e5">
+              <span style="color:#c084fc">class</span> <span style="color:#4a9eff">&lt;testname&gt;</span>
+                <span style="color:#c084fc">extends</span> <span style="color:#4a9eff">pch_pcie_base_test</span>;<br>
+              &nbsp;&nbsp;<span style="color:#c084fc">`uvm_component_utils</span>(<span style="color:#4a9eff">&lt;testname&gt;</span>)<br>
+              &nbsp;&nbsp;<span style="color:#c084fc">function</span> <span style="color:#4a9eff">new</span>(<span style="color:#2dd4bf">string</span> name, uvm_component parent);<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4a9eff">super</span>.new(name, parent);<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#fb923c">user_data_seq_name</span> = <span style="color:#a5d6ff">"&lt;testname&gt;_seq"</span>;<br>
+              &nbsp;&nbsp;<span style="color:#c084fc">endfunction</span><br>
+              <span style="color:#c084fc">endclass</span>
+            </div>
+            <hr class="div">
+            <ul class="cl">
+              <li>Extend <span class="c">pch_pcie_base_test</span></li>
+              <li>Set <span class="c">user_data_seq_name</span> to wire the sequence</li>
+              <li>Register with <span class="c">`uvm_component_utils</span></li>
+              <li>Directory name = class name = file name (no mismatch)</li>
+            </ul>
+            <div class="ex">
+              <div class="ex-lbl">Example</div>
+              <span class="np">tests_vegan/pch_pcie_acs_lvl2/pch_pcie_acs_lvl2.svh</span>
+              <div class="nd" style="font-size:11px;margin-top:4px">user_data_seq_name = "pch_pcie_acs_lvl2_seq"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">code written</div></div>
+
+    <!-- ── STAGE 5: BUILD ── -->
+    <div class="lane">
+      <div class="lh orange">🔨 Stage 5 — Build: Compile + Elaborate</div>
+      <div class="lb">
+        <div class="g3" style="gap:16px">
+          <div class="node n-orange">
+            <div class="nt" style="color:var(--orange)">① Compile</div>
+            <span class="np" style="font-size:9.5px">setenv WORKAREA &lt;path&gt;; source tool.cth;<br>grdlbuild -Pdut=pchlp<br>&nbsp;-start_from_task :common:upf_compile<br>&nbsp;-end_at_task :common:upf_compile</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Duration: ~1 min</li>
+              <li>Check: <span class="c">analysis.log</span> for <span class="c">Error-[</span></li>
+              <li>Check: <span class="c">common.upf_compile.log</span> PASS/FAIL</li>
+              <li>Delete touch file to force recompile</li>
+            </ul>
+            <span class="np" style="font-size:9px">rm output/grdlbuild/.flowMgr/pchlp.upf_compile.touch</span>
+          </div>
+
+          <div class="node n-orange">
+            <div class="nt" style="color:var(--orange)">② Elaborate — x4/x8</div>
+            <span class="np" style="font-size:9.5px">grdlbuild -Pdut=pchlp<br>&nbsp;-start_from_task :common:elab_s3_with_upf<br>&nbsp;-end_at_task :common:elab_s3_with_upf</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Duration: ~35–40 min</li>
+              <li>Simv: <span class="c">model/s3_with_upf/s3_with_upf.simv</span></li>
+              <li>Check: <span class="c">common.elab_s3_with_upf.log</span></li>
+              <li>⚠️ Never interrupt a running elab</li>
+            </ul>
+          </div>
+
+          <div class="node n-orange">
+            <div class="nt" style="color:var(--orange)">② Elaborate — SoC <span class="badge b-purple" style="margin-left:4px">SoC only</span></div>
+            <span class="np" style="font-size:9.5px">grdlbuild elab_fc_rtl_with_upf -Pdut=pchlp<br>or with -x repo_prep (verif-only rebuild)</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Duration: ~1 h 15 min</li>
+              <li>Simv: <span class="c">model/fc_rtl_with_upf/…simv</span></li>
+              <li>Check: <span class="c">common.elab_fc_rtl_with_upf.log</span></li>
+              <li>TOM simv can be reused across DPC tests</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">simv ready</div></div>
+
+    <!-- ── STAGE 6: RUN & OUTPUT ── -->
+    <div class="lane">
+      <div class="lh green">✅ Stage 6 — Run &amp; Validate</div>
+      <div class="lb">
+        <div class="g3" style="gap:16px">
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">▶ Run Test (x4/x8)</div>
+            <span class="np" style="font-size:9.5px">trex $WORKAREA/subsystems/pcie/verif/tests_vegan/&lt;testname&gt;<br>&nbsp;-simv_args +PCIE_CONFIG +SLA_MAX_RUN_CLOCK=5000000<br>&nbsp;+vcs +learn +pli -simv_args-<br>&nbsp;-model s3_with_upf -dut pchlp<br>&nbsp;-simv_args +fsdb=dump.fsdb +fsdb+all -simv_args-</span>
+            <div class="nd" style="margin-top:7px;font-size:11px">Output: <span class="c">regression/pchlp/trex/&lt;testname&gt;/</span><br>Reruns increment: <span class="c">.1</span>, <span class="c">.2</span> …</div>
+          </div>
+
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">▶ Run Test (SoC TOM)</div>
+            <span class="np" style="font-size:9.5px">nohup trex … -build_test_timeout 12h -tom<br>&nbsp;-boot_plus_ip pcie:pxp&lt;X&gt;,dfx<br>&nbsp;-simv_args +pcie_num=&lt;N&gt; …<br>&nbsp;-model fc_rtl_with_upf -dut pchlp<br>&nbsp;-dirtag &lt;TAG&gt; &gt; launch.log 2&gt;&amp;1 &amp;</span>
+            <div class="nd" style="margin-top:7px;font-size:11px">Run time ~20–25 h. Use nohup + background. Monitor with <span class="c">grep LTSSM</span> / <span class="c">grep "@ [0-9]"</span></div>
+          </div>
+
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">🔍 Validation Checks</div>
+            <ul class="cl">
+              <li><span class="c">postmortem.log</span> → OVERALL <span class="status-pass">PASS</span></li>
+              <li><span class="c">jestr.log</span> → 0 UVM_FATAL</li>
+              <li><span class="c">PCIe0_0_trk.out</span> → expected TLPs</li>
+              <li><span class="c">IOSFP_NORTH_INTF_*.trk</span> → MSI / CplD</li>
+              <li>PCIE_TEST_INFO phase messages match scenario</li>
+              <li>SoC: SBR_INFO PATH_CHECK errors are <span class="status-warn">expected noise</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end flow -->
+</div><!-- end tab0 -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
+<!--  DIAGRAM 2 — DEBUG A FAILURE                                                  -->
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="tab1">
+
+  <div class="dh">
+    <div class="dh-num" style="background:rgba(251,146,60,.15);color:var(--orange);border:2px solid var(--orange)">2</div>
+    <div>
+      <div class="dh-title" style="color:var(--orange)">Debug a Simulation Failure</div>
+      <div class="dh-desc">From failing test directory → root cause + fix + re-run validation.<br>
+        Works for: hang, UVM_ERROR, wrong TLP, register mismatch, DPC not triggering, MSI missing.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:var(--yellow)"></div>Trigger</div>
+    <div class="li"><div class="ld" style="background:var(--blue)"></div>Log collection</div>
+    <div class="li"><div class="ld" style="background:var(--red)"></div>Failure classification</div>
+    <div class="li"><div class="ld" style="background:var(--purple)"></div>Knowledge gathering (3 parallel)</div>
+    <div class="li"><div class="ld" style="background:var(--orange)"></div>Root cause analysis</div>
+    <div class="li"><div class="ld" style="background:var(--teal)"></div>Fix &amp; verify</div>
+    <div class="li"><div class="ld" style="background:var(--green)"></div>Output</div>
+  </div>
+
+  <div class="flow">
+
+    <!-- TRIGGER -->
+    <div class="lane">
+      <div class="lh yellow">📋 Stage 1 — Trigger: Failing Test</div>
+      <div class="lb">
+        <div class="node n-yellow">
+          <div class="nt" style="color:var(--yellow)">⚡ Input: Test Directory / Failure Report</div>
+          <div class="g2" style="gap:16px">
+            <div>
+              <div class="nd">User provides test path or failure is found in regression:</div>
+              <span class="np">regression/pchlp/trex/&lt;test_name&gt;[.N]/</span>
+              <span class="np">/nfs/site/disks/zsc16_ttlpcd_00157/…/pchlp/&lt;test_name&gt;/</span>
+              <ul class="cl" style="margin-top:8px">
+                <li>Note the model: x4 / x8 / SoC (from path + elab simv)</li>
+                <li>Check for <span class="c">postmortem.log</span> — exists? OVERALL status?</li>
+                <li>Check for <span class="c">jestr.log</span> — truncated?</li>
+                <li>Is this a regression failure or local dev failure?</li>
+              </ul>
+            </div>
+            <div>
+              <div class="nd" style="font-weight:600;margin-bottom:6px">First-pass triage questions:</div>
+              <div class="node n-red" style="padding:10px">
+                <ul class="cl">
+                  <li>Does <span class="c">postmortem.log</span> exist and say FAIL?</li>
+                  <li>Any UVM_FATAL? (always critical)</li>
+                  <li>Did sim reach USER_DATA_PHASE?</li>
+                  <li>Did sim finish or time out / hang?</li>
+                  <li>Was there a reference passing run?</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">test dir identified</div></div>
+
+    <!-- LOG COLLECTION -->
+    <div class="lane">
+      <div class="lh blue">📂 Stage 2 — Log Collection: Extract Evidence</div>
+      <div class="lb">
+        <div class="g3" style="gap:12px">
+          <div class="node n-blue">
+            <div class="nt" style="color:var(--blue)">🗒️ Simulation Logs</div>
+            <ul class="cl">
+              <li><span class="c">postmortem.log</span> — OVERALL PASS/FAIL, UVM_ERROR/FATAL count</li>
+              <li><span class="c">jestr.log</span> — full sim log; search for PCIE_TEST_INFO, UVM_ERROR, UVM_FATAL, phase transitions</li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px">Key grep patterns:</div>
+            <span class="np" style="font-size:9.5px">grep "UVM_FATAL\|UVM_ERROR" jestr.log</span>
+            <span class="np" style="font-size:9.5px">grep "PCIE_TEST_INFO.*Phase" jestr.log</span>
+            <span class="np" style="font-size:9.5px">grep -o "@ [0-9]*" jestr.log | sort -t@ -k2 -n | tail -3</span>
+          </div>
+
+          <div class="node n-blue">
+            <div class="nt" style="color:var(--blue)">🔬 TLP &amp; Fabric Trackers</div>
+            <ul class="cl">
+              <li><span class="c">PCIe0_0_trk.out</span> — BFM TLP tracker: TLP types, EP bit, LTSSM states</li>
+              <li><span class="c">IOSFP_NORTH_INTF_*.trk</span> — IOSF Primary fabric: CfgRd/CfgWr, MWr, CplD, MSI</li>
+              <li><span class="c">IOSFSB_FAB_TRK_node_PCIE.log</span> — IOSF Sideband: register config via SB</li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px">Key checks:</div>
+            <ul class="cl">
+              <li>EP bit = 1 on poisoned TLP? Check last field before CRC</li>
+              <li>MSI MWr32 to <span class="c">0xFEExxxxx</span> present?</li>
+              <li>CplD with UR/CA status returned?</li>
+              <li>LTSSM → Disabled after DPC?</li>
+            </ul>
+          </div>
+
+          <div class="node n-blue">
+            <div class="nt" style="color:var(--blue)">📡 Waveform (FSDB)</div>
+            <span class="np">dump.fsdb</span>
+            <div class="nd" style="margin-top:6px;font-size:11px">Use Verdi or nWave to inspect signal-level behavior when log analysis is insufficient:</div>
+            <ul class="cl" style="margin-top:6px">
+              <li>DPCSR.DPCTS assertion timing</li>
+              <li>LTSSM state machine transitions</li>
+              <li>CLKREQ / CLKACK gating (SB clock idle = normal)</li>
+              <li>PCIe link status signals</li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px">⚠️ Decompress <span class="c">.fsdb.gz</span> before opening — compressed is 5+ min to load</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">evidence gathered</div></div>
+
+    <!-- FAILURE CLASSIFICATION -->
+    <div class="lane">
+      <div class="lh red">🏷️ Stage 3 — Failure Classification</div>
+      <div class="lb">
+        <div class="g2" style="gap:14px">
+          <div class="node n-red">
+            <div class="nt" style="color:var(--red)">🛑 Hang / Timeout</div>
+            <ul class="cl">
+              <li>Sim did not complete within time limit</li>
+              <li>Jestr shows no progress at later sim times</li>
+              <li>Check last PCIE_TEST_INFO message → which phase?</li>
+              <li>SoC: BFM block on disabled link → need fork timeout</li>
+              <li>SoC TOM: POWER_GOOD_PHASE timeout → boot model config issue</li>
+              <li>X4/X8: SLA_MAX_RUN_CLOCK too small?</li>
+            </ul>
+          </div>
+          <div class="node n-red">
+            <div class="nt" style="color:var(--red)">❌ UVM_ERROR / UVM_FATAL / Wrong Result</div>
+            <ul class="cl">
+              <li>UVM_FATAL → always real, fix before anything else</li>
+              <li>UVM_ERROR from SBR_INFO PATH_CHECK → <span class="status-warn">SoC noise, ignore</span></li>
+              <li>DPC register mismatch → check register config chain order</li>
+              <li>Wrong TLP / missing MSI → check trackers for mis-routing</li>
+              <li>DPCTS not set → AER chain incomplete, check all 13 registers</li>
+              <li>DSTS.CED = 0 on PXPB → expected after single-port DPC recovery</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- SEVERITY MATRIX -->
+        <div style="margin-top:14px">
+          <table class="ctbl">
+            <thead>
+              <tr>
+                <th>Failure Signal</th>
+                <th>Severity</th>
+                <th>First Check</th>
+                <th>Common Root Cause</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>UVM_FATAL</td><td><span class="badge b-red">CRITICAL</span></td><td><span class="c">grep UVM_FATAL jestr.log</span></td><td>Assertion, null handle, phase timeout</td></tr>
+              <tr><td>OVERALL FAIL + UVM_ERROR</td><td><span class="badge b-orange">HIGH</span></td><td><span class="c">grep UVM_ERROR jestr.log</span></td><td>Scoreboard mismatch, reg value wrong</td></tr>
+              <tr><td>Sim hang (no UVM_FATAL)</td><td><span class="badge b-orange">HIGH</span></td><td>Last sim time + phase</td><td>BFM block, infinite wait, missing event</td></tr>
+              <tr><td>DPC not triggered</td><td><span class="badge b-orange">HIGH</span></td><td><span class="c">grep DPCTS jestr.log</span></td><td>Missing reg in 13-register chain</td></tr>
+              <tr><td>SBR_INFO PATH_CHECK</td><td><span class="badge b-teal">NOISE</span></td><td>Count &gt; 300?</td><td>Normal SoC sideband routing — waive</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">failure classified</div></div>
+
+    <!-- KNOWLEDGE GATHERING -->
+    <div class="lane">
+      <div class="lh purple">🧠 Stage 4 — Knowledge Gathering: 3 Parallel Inputs</div>
+      <div class="lb">
+        <div class="g3">
+          <!-- Input 1: Source Code -->
+          <div class="ic" style="border-color:rgba(74,158,255,.35);background:rgba(74,158,255,.05)">
+            <div class="ic-title" style="color:var(--blue)">📁 Input 1 · Source Code Lookup</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Trace the failure location in the sequence/test source:</div>
+            <span class="np">subsystems/pcie/verif/common/seqlib_vegan/&lt;name&gt;_seq.svh</span>
+            <span class="np">subsystems/pcie/verif/common/seqlib_vegan/pch_pcie_base_seq.svh</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Find the line/task that triggered UVM_FATAL/ERROR</li>
+              <li>Check if register access type matches CRIF XML (RW vs RO)</li>
+              <li>Verify port iteration guards (<span class="c">PCH_MIN_VAL_MODEL</span>)</li>
+              <li>Check if SoC-specific APIs are used (<span class="c">GetTxs()</span>)</li>
+              <li>Verify phase ordering matches scenario document</li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px">CRIF XML register lookup:</div>
+            <span class="np" style="font-size:9px">subip/osxml/g5ss2_pcie/spec2crif.ip/PXPC_crif.xml</span>
+          </div>
+
+          <!-- Input 2: Passing Reference -->
+          <div class="ic" style="border-color:rgba(251,146,60,.35);background:rgba(251,146,60,.05)">
+            <div class="ic-title" style="color:var(--orange)">📈 Input 2 · Passing Reference</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Compare failing run against a known-good run:</div>
+            <div class="nd" style="font-size:10.5px;font-weight:600;color:var(--orange);margin-bottom:3px">Find passing run in regression:</div>
+            <span class="np" style="font-size:9.5px">/nfs/site/disks/zsc16_ttlpcd_00157/g5s3_ttlpcdh_func/<br>pcieg5s3_hsphyX4-ssnip_rtl_zsc16-26ww*/pchlp/&lt;testname&gt;/</span>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;margin-bottom:4px">Differential checks:</div>
+            <ul class="cl">
+              <li>Diff jestr.log phase messages (last common point)</li>
+              <li>Compare TLP tracker — which TLPs appear/missing?</li>
+              <li>Compare register readbacks in log</li>
+              <li>Compare random seed — seed-dependent failure?</li>
+              <li>Same postmortem UVM_ERROR types?</li>
+            </ul>
+          </div>
+
+          <!-- Input 3: Agent Memory -->
+          <div class="ic" style="border-color:rgba(192,132,252,.35);background:rgba(192,132,252,.05)">
+            <div class="ic-title" style="color:var(--purple)">🤖 Input 3 · Agent Memory</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Search past debug sessions for matching symptoms:</div>
+            <hr class="div">
+            <ul class="cl">
+              <li><strong class="h">DPC not triggering</strong> → check all 13 regs, AERPR sideband access</li>
+              <li><strong class="h">SoC BFM hang at phase 3.5</strong> → missing <span class="c">fork-join_any</span> 20 µs timeout</li>
+              <li><strong class="h">PIBAItems compile error in SoC</strong> → replace with <span class="c">GetTxs()</span></li>
+              <li><strong class="h">cleanup_junk exit 127</strong> → cosmetic, check Postmortem status instead</li>
+              <li><strong class="h">DSTS.CED=0 on PXPB</strong> → expected, no correctable errors on recovery</li>
+              <li><strong class="h">CLKREQ=0 / CLKACK=0</strong> → normal SB clock gating, not a bug</li>
+              <li><strong class="h">elab fails after seq edit</strong> → touch file not deleted</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">root cause identified</div></div>
+
+    <!-- ROOT CAUSE + FIX -->
+    <div class="lane">
+      <div class="lh orange">🔧 Stage 5 — Root Cause Analysis &amp; Fix</div>
+      <div class="lb">
+        <div class="g2" style="gap:14px">
+          <div>
+            <div class="nd" style="font-weight:600;margin-bottom:10px">Common Root Cause Categories:</div>
+            <div class="timeline">
+              <div class="tl-item c-red">
+                <div class="tl-title">Sequence logic error</div>
+                <div class="tl-detail">Wrong register value, missing reg in chain, wrong phase order. Fix: edit <span style="font-family:var(--mono);font-size:10px;color:var(--orange)">*_seq.svh</span>, recompile+elab.</div>
+              </div>
+              <div class="tl-item c-orange">
+                <div class="tl-title">Model-specific incompatibility</div>
+                <div class="tl-detail">SoC: PIBAItems → GetTxs(), BFM hang → fork timeout. Fix: apply SoC guards, recompile+elab.</div>
+              </div>
+              <div class="tl-item c-blue">
+                <div class="tl-title">Register access type mismatch</div>
+                <div class="tl-detail">Writing RO register via primary access. Fix: switch to sideband macro or STRPFUSECFG.</div>
+              </div>
+              <div class="tl-item c-purple">
+                <div class="tl-title">Multi-port issue (x8)</div>
+                <div class="tl-detail">Test runs on port 1 causing unexpected behavior. Fix: add <span style="font-family:var(--mono);font-size:10px;color:var(--orange)">return;</span> after first port.</div>
+              </div>
+              <div class="tl-item c-teal">
+                <div class="tl-title">Infrastructure / environment</div>
+                <div class="tl-detail">Wrong WORKAREA, stale touch files, cleanup_junk exit 127. Fix: env check, delete touch, verify postmortem separately.</div>
+              </div>
+              <div class="tl-item c-green">
+                <div class="tl-title">Expected behavior misclassified</div>
+                <div class="tl-detail">SBR_INFO PATH_CHECK (SoC noise), DSTS.CED=0 (PXPB recovery). Fix: document as waived.</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="nd" style="font-weight:600;margin-bottom:10px">When to Recompile vs Just Rerun:</div>
+            <table class="ctbl">
+              <thead><tr><th>Change Made</th><th>Required Action</th></tr></thead>
+              <tbody>
+                <tr><td>Sequence .svh modified</td><td><span class="badge b-red">Compile + Elab + Rerun</span></td></tr>
+                <tr><td>Test class .svh modified</td><td><span class="badge b-red">Compile + Elab + Rerun</span></td></tr>
+                <tr><td>base_seq.svh modified</td><td><span class="badge b-red">Compile + Elab + Rerun ALL</span></td></tr>
+                <tr><td>*.inc include file modified</td><td><span class="badge b-red">Compile + Elab + Rerun</span></td></tr>
+                <tr><td>Plusargs changed only</td><td><span class="badge b-green">Just rerun</span></td></tr>
+                <tr><td>Random seed changed</td><td><span class="badge b-green">Just rerun</span></td></tr>
+                <tr><td>RTL file modified</td><td><span class="badge b-orange">Full rebuild from defacto</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">fix applied</div></div>
+
+    <!-- OUTPUT -->
+    <div class="lane">
+      <div class="lh green">✅ Stage 6 — Verify Fix</div>
+      <div class="lb">
+        <div class="g3" style="gap:14px">
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">Re-run Test</div>
+            <ul class="cl">
+              <li>Compile + elab if code changed</li>
+              <li>Run trex command (same plusargs)</li>
+              <li>Output to new <span class="c">.N</span> directory</li>
+            </ul>
+          </div>
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">Verify Pass</div>
+            <ul class="cl">
+              <li><span class="c">postmortem.log</span> → OVERALL <span class="status-pass">PASS</span></li>
+              <li>0 UVM_FATAL</li>
+              <li>Test-specific PCIE_TEST_INFO messages present</li>
+              <li>Expected TLPs visible in tracker</li>
+            </ul>
+          </div>
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">Record in Agent Memory</div>
+            <ul class="cl">
+              <li>Root cause category</li>
+              <li>Fix applied (exact code change)</li>
+              <li>Model-specific (g5s3 / SoC)</li>
+              <li>Key log evidence used</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end flow -->
+</div><!-- end tab1 -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
+<!--  DIAGRAM 3 — REGRESSION REPORT                                                -->
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="tab2">
+
+  <div class="dh">
+    <div class="dh-num" style="background:rgba(192,132,252,.15);color:var(--purple);border:2px solid var(--purple)">3</div>
+    <div>
+      <div class="dh-title" style="color:var(--purple)">Generate Regression Report</div>
+      <div class="dh-desc">Auto-scan latest WW regression across 3 models → per-test pass/fail table → push Markdown report to GitHub.<br>
+        Repo: <span style="font-family:var(--mono);font-size:11px;color:var(--orange)">mmahdzir/ttl-pcie-regression</span> &nbsp;|&nbsp; Owner filter: <span style="font-family:var(--mono);font-size:11px;color:var(--orange)">mmahdzir</span></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:var(--yellow)"></div>Trigger</div>
+    <div class="li"><div class="ld" style="background:var(--blue)"></div>Regression discovery</div>
+    <div class="li"><div class="ld" style="background:var(--teal)"></div>Data collection</div>
+    <div class="li"><div class="ld" style="background:var(--purple)"></div>Knowledge gathering (3 parallel)</div>
+    <div class="li"><div class="ld" style="background:var(--orange)"></div>Report generation</div>
+    <div class="li"><div class="ld" style="background:var(--green)"></div>Output + publish</div>
+  </div>
+
+  <div class="flow">
+
+    <!-- TRIGGER -->
+    <div class="lane">
+      <div class="lh yellow">📋 Stage 1 — Trigger</div>
+      <div class="lb">
+        <div class="node n-yellow">
+          <div class="nt" style="color:var(--yellow)">⚡ Request: Generate Weekly Report</div>
+          <div class="g2" style="gap:16px">
+            <div>
+              <div class="nd">User specifies (or agent detects):</div>
+              <ul class="cl" style="margin-top:8px">
+                <li>Work week number (e.g. 26ww19)</li>
+                <li>Models to include: x4 / x8 / SoC / all</li>
+                <li>Owner filter: <span class="c">mmahdzir</span> (from mmahdzir_tests.json)</li>
+              </ul>
+            </div>
+            <div>
+              <div class="nd" style="font-weight:600;margin-bottom:6px">Key inputs:</div>
+              <div class="node n-orange" style="padding:10px">
+                <ul class="cl">
+                  <li><span class="c">TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml</span> — test metadata</li>
+                  <li><span class="c">mmahdzir_tests.json</span> — owner-filtered test list</li>
+                  <li>3 regression disk paths (auto-discover latest WW)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">parameters set</div></div>
+
+    <!-- REGRESSION DISCOVERY -->
+    <div class="lane">
+      <div class="lh blue">🔎 Stage 2 — Regression Discovery: Auto-Detect Latest WW</div>
+      <div class="lb">
+        <div class="g3" style="gap:14px">
+          <div class="node n-blue">
+            <div class="nt" style="color:var(--blue)">🔵 g5s3 x4 Model</div>
+            <span class="np" style="font-size:9.5px">ls -d /nfs/site/disks/zsc16_ttlpcd_00157/<br>g5s3_ttlpcdh_func/pcieg5s3_hsphyX4-ssnip_rtl_zsc16-* | sort | tail -1</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Path pattern: <span class="c">pcieg5s3_hsphyX4-ssnip_rtl_zsc16-26ww*</span></li>
+              <li>Test results under: <span class="c">…/pchlp/&lt;testname&gt;/</span></li>
+              <li>Controller: PXPC</li>
+            </ul>
+          </div>
+
+          <div class="node n-blue">
+            <div class="nt" style="color:var(--teal)">🟢 g5s3 x8 Model</div>
+            <span class="np" style="font-size:9.5px">ls -d /nfs/site/disks/zsc16_ttlpcd_00157/<br>g5s3_ttlpcdh_func/pcieg5s3_hsphyX8-ssnip_rtl_zsc16-* | sort | tail -1</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Path pattern: <span class="c">pcieg5s3_hsphyX8-ssnip_rtl_zsc16-26ww*</span></li>
+              <li>Test results under: <span class="c">…/pchlp/&lt;testname&gt;/</span></li>
+              <li>Controller: PXPD</li>
+            </ul>
+          </div>
+
+          <div class="node n-blue">
+            <div class="nt" style="color:var(--purple)">🟣 SoC fc_rtl_with_upf</div>
+            <span class="np" style="font-size:9.5px">ls -d /nfs/site/disks/zsc16_ttlpcd_00163/<br>fc_ttlpcdh_bconfig_func/pcd-ttl-h-main-26ww* | sort | tail -1</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Path pattern: <span class="c">pcd-ttl-h-main-26ww*</span></li>
+              <li>Test results under: <span class="c">…/pchlp/</span></li>
+              <li>Tests include: <span class="c">_PXPA</span>, <span class="c">_PXPB</span>, <span class="c">_PXPC</span>, <span class="c">_PXPD</span> suffixes</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">paths identified</div></div>
+
+    <!-- DATA COLLECTION -->
+    <div class="lane">
+      <div class="lh teal">📥 Stage 3 — Data Collection: Sweep Test Results</div>
+      <div class="lb">
+        <div class="g2" style="gap:14px">
+          <div class="node n-teal">
+            <div class="nt" style="color:var(--teal)">Per-Test Result Collection</div>
+            <span class="np" style="font-size:9.5px">for testdir in "$REGBASE"/&lt;testlist_dir&gt;/pch_*; do<br>&nbsp;&nbsp;grep "OVERALL" "$testdir/postmortem.log" 2&gt;/dev/null | head -1<br>done</span>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;margin-bottom:4px">Collect for each test:</div>
+            <ul class="cl">
+              <li>OVERALL PASS / FAIL / PARTIAL</li>
+              <li>UVM_ERROR count (SoC: subtract SBR noise ~300)</li>
+              <li>Simulation time reached</li>
+              <li>Run timestamp (WW)</li>
+              <li>Controller instance (PXPA/B/C/D in SoC)</li>
+            </ul>
+          </div>
+
+          <div class="node n-teal">
+            <div class="nt" style="color:var(--teal)">Test Name Matching Rules</div>
+            <ul class="cl">
+              <li>SoC tests have controller suffix: <span class="c">_PXPA</span>, <span class="c">_PXPB</span>, <span class="c">_PXPC</span>, <span class="c">_PXPD</span>, <span class="c">_SOC_PXP*</span></li>
+              <li>g5s3 tests may have <span class="c">_IOE</span> suffix or plain names</li>
+              <li>Match base test name from testplan to regression by prefix</li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;color:var(--red)">⚠️ Critical matching rule:</div>
+            <div class="node n-red" style="padding:9px;margin-top:6px">
+              <div class="nd" style="font-size:11px">Do NOT match <span class="c">pch_pcie_L1_Off</span> to <span class="c">pch_pcie_L1_Off_genMax</span> — these are DIFFERENT tests. Exclude matches where the regression name is a prefix of a longer testplan entry.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">results collected</div></div>
+
+    <!-- KNOWLEDGE GATHERING -->
+    <div class="lane">
+      <div class="lh purple">🧠 Stage 4 — Knowledge Gathering: 3 Parallel Inputs</div>
+      <div class="lb">
+        <div class="g3">
+          <!-- Input 1: Testplan XML -->
+          <div class="ic" style="border-color:rgba(74,158,255,.35);background:rgba(74,158,255,.05)">
+            <div class="ic-title" style="color:var(--blue)">📋 Input 1 · Testplan XML</div>
+            <span class="np" style="font-size:9.5px">/nfs/site/disks/zsc16_mmahdzir_stod001/<br>TTLPCDH.TTL_PCD_H_PCIe_Testplan.xml</span>
+            <hr class="div">
+            <ul class="cl">
+              <li>Full test list with owner, SOC milestone, model field</li>
+              <li>Model field: <span class="c">fc_rtl_with_upf</span> / <span class="c">pcie_g5_with_upf</span> / <span class="c">Other</span></li>
+              <li>SOCMilestone: VAL0P5, VAL0P8, etc.</li>
+              <li>Filter to owner = mmahdzir → <span class="c">mmahdzir_tests.json</span></li>
+            </ul>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;margin-bottom:4px">Model assignment logic:</div>
+            <table class="ctbl" style="margin-top:4px">
+              <tr><td><span class="c">fc_rtl_with_upf</span></td><td>SoC model only</td></tr>
+              <tr><td><span class="c">pcie_g5_with_upf</span></td><td>Both x4 and x8</td></tr>
+              <tr><td><span class="c">Other</span></td><td>Check Model_Other field</td></tr>
+            </table>
+          </div>
+
+          <!-- Input 2: Live Results -->
+          <div class="ic" style="border-color:rgba(251,146,60,.35);background:rgba(251,146,60,.05)">
+            <div class="ic-title" style="color:var(--orange)">📊 Input 2 · Live Regression Results</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Postmortem sweep across all 3 models for latest WW:</div>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;margin-bottom:4px">Status categories:</div>
+            <table class="ctbl">
+              <tr><td><span class="badge b-green">PASS</span></td><td>OVERALL PASS in postmortem</td></tr>
+              <tr><td><span class="badge b-red">FAIL</span></td><td>OVERALL FAIL in postmortem</td></tr>
+              <tr><td><span class="badge b-yellow">PARTIAL</span></td><td>Some instances pass, some fail</td></tr>
+              <tr><td><span class="badge b-orange">ABSENT</span></td><td>Test dir not found in regression</td></tr>
+              <tr><td><span class="badge b-teal">N/A</span></td><td>Test not expected on this model</td></tr>
+            </table>
+          </div>
+
+          <!-- Input 3: Agent Memory -->
+          <div class="ic" style="border-color:rgba(192,132,252,.35);background:rgba(192,132,252,.05)">
+            <div class="ic-title" style="color:var(--purple)">🤖 Input 3 · Agent Memory</div>
+            <div class="nd" style="font-size:11px;margin-bottom:7px">Known failure patterns to annotate in report:</div>
+            <hr class="div">
+            <ul class="cl">
+              <li>Waived failures with HSD tracking numbers</li>
+              <li>SoC cleanup_junk exit-127 → check postmortem separately</li>
+              <li>SBR_INFO PATH_CHECK noise → waive in SoC count</li>
+              <li>DSTS.CED=0 on PXPB → expected</li>
+              <li>Previously documented root causes for recurring failures</li>
+              <li>Tests known to be seeded-dependent (flaky)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">data + context ready</div></div>
+
+    <!-- REPORT GENERATION -->
+    <div class="lane">
+      <div class="lh orange">📝 Stage 5 — Report Generation</div>
+      <div class="lb">
+        <div class="g2" style="gap:14px">
+          <div>
+            <div class="nd" style="font-weight:600;margin-bottom:10px">Report Sections (Markdown):</div>
+            <div class="timeline">
+              <div class="tl-item c-blue">
+                <div class="tl-title">1. Regression Sources</div>
+                <div class="tl-detail">Model paths, WW, test counts, overall pass rates per model</div>
+              </div>
+              <div class="tl-item c-teal">
+                <div class="tl-title">2. Executive Summary</div>
+                <div class="tl-detail">Total: PASS / FAIL / PARTIAL / ABSENT counts across all models</div>
+              </div>
+              <div class="tl-item c-orange">
+                <div class="tl-title">3. By SOCMilestone</div>
+                <div class="tl-detail">Breakdown per VAL0P5, VAL0P8, etc. — milestone health view</div>
+              </div>
+              <div class="tl-item c-purple">
+                <div class="tl-title">4. Test Status Table</div>
+                <div class="tl-detail">Per-test row: SoC (PXPA/B/C/D) / x4 / x8 columns with pass/fail counts</div>
+              </div>
+              <div class="tl-item c-red">
+                <div class="tl-title">5. Detailed Breakdown</div>
+                <div class="tl-detail">Expandable per-test info with all instances, log excerpts</div>
+              </div>
+              <div class="tl-item c-green">
+                <div class="tl-title">6. Action Items</div>
+                <div class="tl-detail">Failing tests (need debug), absent tests (need to run), passing tests (confirm list)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="node n-orange">
+            <div class="nt" style="color:var(--orange)">Output File</div>
+            <span class="np">ww&lt;WW&gt;_mmahdzir_regression_rpt.md</span>
+            <hr class="div">
+            <div class="nd" style="font-size:11px;font-weight:600;margin-bottom:6px">SoC per-controller columns:</div>
+            <table class="ctbl">
+              <thead><tr><th>Test Name</th><th>PXPA</th><th>PXPB</th><th>PXPC</th><th>PXPD</th><th>x4</th><th>x8</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td style="font-size:10px">pch_pcie_dpc_edpc_up_tlp_trig</td>
+                  <td><span class="badge b-green" style="font-size:9px">PASS</span></td>
+                  <td><span class="badge b-green" style="font-size:9px">PASS</span></td>
+                  <td><span class="badge b-red" style="font-size:9px">FAIL</span></td>
+                  <td><span class="badge b-orange" style="font-size:9px">ABS</span></td>
+                  <td><span class="badge b-green" style="font-size:9px">PASS</span></td>
+                  <td><span class="badge b-green" style="font-size:9px">PASS</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr">↓<div class="arr-lbl">report generated</div></div>
+
+    <!-- OUTPUT -->
+    <div class="lane">
+      <div class="lh green">✅ Stage 6 — Publish &amp; Act</div>
+      <div class="lb">
+        <div class="g3" style="gap:14px">
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">📤 Push to GitHub</div>
+            <span class="np" style="font-size:9.5px">git add ww&lt;WW&gt;_mmahdzir_regression_rpt.md<br>git commit -m "ww&lt;WW&gt; regression report"<br>git push origin main</span>
+            <div class="nd" style="margin-top:6px;font-size:11px">Repo: <span class="c">mmahdzir/ttl-pcie-regression</span></div>
+          </div>
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">🔴 Action: Failing Tests</div>
+            <ul class="cl">
+              <li>Open debug workflow (Objective 2) for each FAIL</li>
+              <li>Prioritize by SOCMilestone (VAL0P8 first)</li>
+              <li>Record findings in agent memory</li>
+            </ul>
+          </div>
+          <div class="node n-green">
+            <div class="nt" style="color:var(--green)">⬜ Action: Absent Tests</div>
+            <ul class="cl">
+              <li>Identify if test was never created → Objective 1</li>
+              <li>Or if it was created but not submitted to regression</li>
+              <li>Submit via grdlbuild / trex if needed</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end flow -->
+</div><!-- end tab2 -->
+
+</div><!-- content -->
+
+<script>
+  function show(n) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === n));
+    document.querySelectorAll('.section').forEach((s, i) => s.classList.toggle('active', i === n));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
