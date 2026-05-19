@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCIe Validation — WW17 Regression Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --pass: #3fb950;
+    --fail: #f85149;
+    --absent: #d29922;
+    --partial: #a371f7;
+    --na: #484f58;
+    --blue: #58a6ff;
+    --teal: #79c0ff;
+    --orange: #ffa657;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; font-size: 13px; }
+  a { color: var(--blue); text-decoration: none; }
+  
+  .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+  .topbar .logo { font-size: 18px; }
+  .topbar h1 { font-size: 16px; font-weight: 600; }
+  .topbar .ww-badge { background: var(--blue); color: #000; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+  .topbar .date { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+  
+  /* Summary cards */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card .card-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .card .card-value { font-size: 28px; font-weight: 700; }
+  .card.pass  .card-value { color: var(--pass); }
+  .card.fail  .card-value { color: var(--fail); }
+  .card.absent .card-value { color: var(--absent); }
+  .card.total .card-value { color: var(--blue); }
+  .card.owners .card-value { color: var(--teal); }
+  
+  /* Charts row */
+  .charts-row { display: grid; grid-template-columns: 240px 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .chart-card h3 { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .chart-wrap { position: relative; }
+  
+  /* Filters */
+  .filters-bar { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .filters-bar label { font-size: 11px; color: var(--muted); margin-right: 4px; }
+  .filters-bar select, .filters-bar input { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 12px; }
+  .filters-bar input { width: 200px; }
+  #clear-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  #clear-btn:hover { border-color: var(--blue); color: var(--blue); }
+  #row-count { color: var(--muted); font-size: 12px; margin-left: auto; }
+  
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: var(--bg3); position: sticky; top: 0; z-index: 10; }
+  th { padding: 9px 12px; text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { color: var(--text); }
+  th .sort-icon { opacity: 0.4; margin-left: 4px; }
+  th.sorted-asc .sort-icon::after { content: '▲'; opacity: 1; }
+  th.sorted-desc .sort-icon::after { content: '▼'; opacity: 1; }
+  th .sort-icon::after { content: '⇅'; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: var(--bg3); }
+  .test-name { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11.5px; color: var(--teal); }
+  .owner-chip { background: var(--bg3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .milestone-chip { font-size: 11px; color: var(--orange); }
+  
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+  .badge-pass   { background: rgba(63,185,80,0.15); color: var(--pass); border: 1px solid rgba(63,185,80,0.3); }
+  .badge-fail   { background: rgba(248,81,73,0.15); color: var(--fail); border: 1px solid rgba(248,81,73,0.3); }
+  .badge-absent { background: rgba(210,153,34,0.15); color: var(--absent); border: 1px solid rgba(210,153,34,0.3); }
+  .badge-partial{ background: rgba(163,113,247,0.15); color: var(--partial); border: 1px solid rgba(163,113,247,0.3); }
+  .badge-na     { background: var(--bg3); color: var(--na); border: 1px solid var(--border); }
+  
+  .no-data-note { color: var(--muted); font-size: 11px; font-style: italic; }
+  .section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  
+  .legend-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">🔌</span>
+  <h1>PCIe Validation — Regression Report</h1>
+  <span class="ww-badge">WW17</span>
+  <span class="date">Generated 2025 WW17 | TTL-PCD-H PCIe</span>
+</div>
+
+<div class="container">
+
+  <!-- Summary cards: mmahdzir WW17 results -->
+  <p class="section-title" style="margin-top:8px">📊 WW17 Run Summary — mmahdzir</p>
+  <div style="color:var(--muted);font-size:12px;margin-bottom:12px">
+    Sources: SoC → <code>pcd-ttl-h-main-26ww17g</code> &nbsp;|&nbsp; 
+    g5s3 x4 → <code>pcieg5s3_hsphyX4-ssnip_rtl_zsc16-26ww17a</code> &nbsp;|&nbsp;
+    g5s3 x8 → <code>pcieg5s3_hsphyX8-ssnip_rtl_zsc16-26ww17a</code>
+  </div>
+  <div class="cards-grid">
+    <div class="card total"><div class="card-label">Total Tests</div><div class="card-value">228</div></div>
+    <div class="card owners"><div class="card-label">Owners</div><div class="card-value">6</div></div>
+    <div class="card pass"><div class="card-label">mmahdzir PASS</div><div class="card-value">26</div></div>
+    <div class="card fail"><div class="card-label">mmahdzir FAIL</div><div class="card-value">2</div></div>
+    <div class="card absent"><div class="card-label">mmahdzir ABSENT</div><div class="card-value">7</div></div>
+    <div class="card" style="border-color:var(--na)"><div class="card-label">Other Owners</div><div class="card-value" style="color:var(--muted)">189</div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>mmahdzir Overall (WW17)</h3>
+      <div class="chart-wrap" style="height:200px"><canvas id="donutChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Tests by Owner (Testplan total)</h3>
+      <div class="chart-wrap" style="height:200px"><canvas id="ownerChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Tests by Milestone</h3>
+      <div class="chart-wrap" style="height:200px"><canvas id="milestoneChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div><label>Owner</label><select id="f-owner"><option value="">All</option></select></div>
+    <div><label>Milestone</label><select id="f-milestone"><option value="">All</option></select></div>
+    <div><label>Overall Status</label><select id="f-status"><option value="">All</option><option>PASS</option><option>FAIL</option><option>ABSENT</option><option>PARTIAL</option><option>NA</option></select></div>
+    <div><label>Model</label><select id="f-model"><option value="">All</option></select></div>
+    <div><input id="f-search" type="text" placeholder="Search test name..."></div>
+    <button id="clear-btn">Clear</button>
+    <span id="row-count"></span>
+  </div>
+
+  <!-- Table -->
+  <p class="section-title">📋 All Tests</p>
+  <div class="legend-row">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--pass)"></span>PASS</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--fail)"></span>FAIL</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--absent)"></span>ABSENT (test not found in regression dir)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--partial)"></span>PARTIAL (some pass/fail)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--na)"></span>— (not in WW17 scan)</span>
+  </div>
+  <div class="table-wrap">
+  <table id="main-table">
+    <thead><tr>
+      <th data-col="test_name">Test Name<span class="sort-icon"></span></th>
+      <th data-col="owner">Owner<span class="sort-icon"></span></th>
+      <th data-col="milestone">Milestone<span class="sort-icon"></span></th>
+      <th data-col="model">Model<span class="sort-icon"></span></th>
+      <th data-col="soc">SoC<span class="sort-icon"></span></th>
+      <th data-col="x4">g5s3 x4<span class="sort-icon"></span></th>
+      <th data-col="x8">g5s3 x8<span class="sort-icon"></span></th>
+      <th data-col="overall">Overall<span class="sort-icon"></span></th>
+    </tr></thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  </div>
+
+</div>
+
+<script>
+const ALL_ROWS = [{"test_name": "pch_pcie_fusestrap_connectivity_test", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_hsphy_ldo_connectivity_test", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_fuse_strap_test", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_link_down_gpio_debug_port", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_register_access", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_hsphy_register_access_test", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_hsphy_register_access_test +HSPHY_LDO_OFF", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_hsphy_register_access_test +HSPHY_LDO_OFF +PMA_FORCE_ON_LDO", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_func_dis_sb_reg_acc", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_speed_change_test +pcie_gen=1", "owner": "chinfong", "milestone": "RTL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_speed_change_test +pcie_gen=2", "owner": "chinfong", "milestone": "RTL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_speed_change_test +pcie_gen=3", "owner": "chinfong", "milestone": "RTL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_speed_change_test +pcie_gen=4", "owner": "chinfong", "milestone": "RTL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_speed_change_test +pcie_gen=5", "owner": "chinfong", "milestone": "RTL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_b2b_speed_change", "owner": "namlee", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_gen123451_switch", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_gen34_eq", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_genMax_eq", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_disable_link", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_pri_io", "owner": "chinfong", "milestone": "RTL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_mem_up_concur_rand", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_mem_dn_concur_rand", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_bfm_disc_pltcfg", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_tlp_prefix_rs0rs3_test", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_mem_split", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_multi_downstream_np_test", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_rs0_max_payload_for_p_cmp_inegress", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_mem_vc1_test", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_tc2vc_random_test", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_r2r_pcie2rc_test", "owner": "chinfong", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_rid_pcie2pcie_test", "owner": "chinfong", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_8xh_decode", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_ioxapic_range_access", "owner": "chinfong", "milestone": "RTL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_vga_memio", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_random_pbn", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_atomic_cycle", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_b2b_speed_change+prim_clk_throttle", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_s3 +prim_clk_throttle", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_pcie  + prim_clk_throttle", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_prim_clk_throttle_hotplug", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_mixed_gen5_gen2_clk_throttle", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_lane_reverse", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_port_hide", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_acs_lvl2", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_ari_lvl2", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_int", "owner": "chinfong", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_gpemsg_test", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_scimsg_test", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_smimsg_test", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_ptm", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_serr_lvl2", "owner": "chinfong", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_serr_lvl2", "owner": "chinfong", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_software_override_ltr_test", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_sai_rx_downstream_Inv_test", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_patch_load / pch_pcieg5s3_patch_load", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_energy_reporting / pch_pcieg5s3_energy_reporting", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_ltr_msg", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_ltr_cap_dis", "owner": "namlee", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_ltr_dis", "owner": "namlee", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_pri_msg_lvl2", "owner": "chewyeec", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_L1_STD", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Low", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Snooz", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Snooz +HSPHY_LDO_SURV", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Snooz_genMax", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Off", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf, fc_rtl_with_upf_xprop}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_L1_Off +HSPHY_LDO_SURV", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Off + PG_MODE_EN=0", "owner": "chinfong", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_L1_Off_genMax", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_L1_Off_L1SS_exit_flow", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "PASS", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_L1_Off_ldo_forceon", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1_Off_ldo_sleep_rtoff", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1p1_L1p2", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1p2_L1p1", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_phy0L1p1_phy1L1p2", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_phy0L1p2_phy1L1p1", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1_Off_UR", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1p2_uncfg", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1p2_dncfg_upcfg", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1p2_dncfg_upcfg +HSPHY_LDO_SURV", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1p2_disable", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_L1_Off", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_runtime_d3", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_runtime_d3_genMax", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_L1SS_RTD3_LDO_state_check", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_dis_seqr_mode_host", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_genMax_to_gen1_after_pmc_warm_reset / pch_pcieg5s3_warm_reset_genMax", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf, fc_rtl_with_upf_xprop}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_genMax_to_gen1_after_Sx / pch_pcieg5s3_s3_genMax", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf, fc_rtl_with_upf_xprop}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_genMax_to_gen1_after_pmc_warm_reset +PG_MODE_EN=0", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_genMax_to_gen1_after_Sx +PG_MODE_EN=0", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_hotRst_in_warmRst_test / pch_pciedmig5s3_hotRst_in_warmRst_test", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_hotRst_in_coldRst_test / pch_pciedmig5s3_hotRst_in_coldRst_test", "owner": "chinfong", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pciedmi_L23_in_coldRst_test / pch_pciedmig5s3_L23_in_coldRst_test", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_cold_reset + AON_PG", "owner": "namlee", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_warm_reset + AON_PG", "owner": "namlee", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_global_reset + AON_PG", "owner": "namlee", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_warm_reset", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_cold_reset", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_sx_reset_test_S3", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_sx_reset_test_S4", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_sx_reset_test_S5", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_global_reset", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_cold_reset_genMax", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_global_reset_genMax", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +DISCONNECT [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +PXPX +G2", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +PXPX +G2 +L1", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +PXPX +GenMax", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +PXPX +GenMax +L1", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +DISCONNECT +ColdReset [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +G2 +ColdReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +G2 +L1 +ColdReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +ColdReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +L1 +ColdReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +DISCONNECT +ColdReset [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +G2 +WarmReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +G2 +L1 +WarmReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +WarmReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +L1 +WarmReset", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +DISCONNECT [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +PXPX +G2", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +PXPX +G2 +L1", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +PXPX +GenMax", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +PXPX +GenMax +L1", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +WarmReset +Assert_srcclkreq [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +WarmReset +DEAssert_srcclkreq [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +Assert_srcclkreq [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +DEAssert_srcclkreq [NonRepeatPerInst]", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_s0i2p0_entry_exit", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_s0i2p2_entry_exit", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_s0i2p1_entry_exit", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +ColdReset +DPC", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +WarmReset +DPC", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +PXPX +GenMax +DPC", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +PXPX +GenMax +DPC", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p0_pcie", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p0_L1p2_pcie", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_pcie / pch_pcieg5s3_s0i2p2", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_extra_srm_save", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_pcie / pch_pcieg5s3_s0i2p2_L1p2", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf, fc_rtl_with_upf_xprop}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_pcie / pch_pcieg5s3_s0i2p2_L1p2 +PLATFORM_CFG=1", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_pcie / pch_pcieg5s3_s0i2p2_L1p2 +PLATFORM_CFG=3", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_pcie +PG_MODE_EN=0", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_s0i2p2_L1p2_genMax_pcie / pch_pcieg5s3_s0i2p2_L1p2_genMax", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_pcie_zero_restore", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "PARTIAL", "x4": "NA", "x8": "NA", "overall": "FAIL", "has_data": true}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_DELAY=<EARLY> (VNN_SAVE) / pch_pcieg5s3_s0i2p2_abort", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_DELAY=<LATE> (VNN_SAVE_02)", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_DELAY=<EARLY> (VNN_SAVE) / pch_pcieg5s3_s0i2p2_abort", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_STATE=LPM_HND_PARK_CLKS", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_STATE=LPM_HND_PARK_RTC_CLKS", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_STATE=LPM_HND_PREP_REQ", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p2_L1p2_abort +PCIE_ABORT_STATE=LPM_HND_VNN_REM", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s3i2p2_L1p2_pcie / pch_pcieg5s3_s3i2p2_L1p2", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf, fc_rtl_with_upf_xprop}", "soc": "PARTIAL", "x4": "PASS", "x8": "PASS", "overall": "FAIL", "has_data": true}, {"test_name": "pch_pcie_s0i2p2 + AON_PG", "owner": "namlee", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_s3i2p2_pbwake +AON_PG", "owner": "namlee", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0_s5_g3_s5i2p2_minset_pbwake_pcie", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_uncfg", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_dncfg_upcfg", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_dncfg_upcfg +HSPHY_LDO_SURV", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_disable", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p0_pcie_hotplug", "owner": "jyeoh", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_pcie / pch_pcieg5s3_s0i2p1", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p1_pcie / pch_pcieg5s3_s0i2p1_L1p1", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p1_pcie / pch_pcieg5s3_s0i2p1_L1p1 +PLATFORM_CFG=3", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p2_pcie / pch_pcieg5s3_s0i2p1_L1p2 +PLATFORM_CFG=4", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p2_genMax_pcie / pch_pcieg5s3_s0i2p1_L1p1_genMax", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s3i2p0_L1p1_pcie / pch_pcieg5s3_s3i2p0_L1p1", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf, fc_rtl_with_upf_xprop}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0_s5_g3_s5i2p0_minset_pbwake_pcie", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p1_dpc_pcie", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_s3i2p0_dpc_pcie", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_pcieg5s3_coldreset_coldreset", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_coldreset_s0i2p2", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_coldreset_s3", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_coldreset_warmreset", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_s0i2p2_coldreset", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_s0i2p2", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_s3", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s0i2p2_warmreset", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s3_coldreset", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s3_s0i2p2", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s3_s3", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s3_warmreset", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_s5_s3_s4", "owner": "nmorshid", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcieg5s3_warmreset_coldreset", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_warmreset_s0i2p2", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_warmreset_s3", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_pcieg5s3_warmreset_warmreset", "owner": "mmahdzir", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "PASS", "x8": "PASS", "overall": "PASS", "has_data": true}, {"test_name": "pch_s0i2p2_L1p2_pcie / pch_pcieg5s3_s0i2p2_L1p2 +PLATFORM_CFG=<specific SKU>", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s3i2p2_L1p2_pcie +PLATFORM_CFG=<specific SKU>", "owner": "chinfong", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3_S3CM3/pch_pcieg5s3_s3 +PLATFORM_CFG=<specific SKU>", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p2_pcie / pch_pcieg5s3_s0i2p1_L1p2 +PLATFORM_CFG=<specific SKU>", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p0_L1p2_pcie +PLATFORM_CFG=<specific SKU>", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_ecrc_check", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_dpc_edpc_up_tlp_trig", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_pcie_dpc_edpc_rppio_err_trig", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_pcie_dpc_edpc", "owner": "mmahdzir", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "ABSENT", "x4": "NA", "x8": "NA", "overall": "ABSENT", "has_data": true}, {"test_name": "pch_pcie_suppress_aer_int", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_force_serr_ovr", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_force_serr_ovr_dis", "owner": "nmorshid", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_err_cor_mask", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_err_inj", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_inbound_poisoned_tlp_drop", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_prim_parity_err_dn", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_prim_parity_err_dn_psf_fab_hang", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_prim_parity_err_dn_psf_err_inj", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_prim_parity_err_up", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_e2e_parity", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_performance_concurrent", "owner": "chinfong", "milestone": "VAL0P5", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_imr_access_rs0_rs3", "owner": "unassigned", "milestone": "VAL0P5", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_speed_change_test+gen1+TLP_HINT", "owner": "unassigned", "milestone": "VAL0P5", "model": "{Other}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p0_pcie_smalertb_hotplug", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s0i2p1_L1p1_pcie_smalertb_hotunplug", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_s3i2p0_L1p1_pcie_smalertb_hotunplug", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_multi_ports", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_surprise_removal", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_nda_pg", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_oob_inb_mix", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_npem_multi_ports", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_b2b_vpp_update", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_multi_devarbreq", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_smalertb_multi_devarbreq", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_shpc_smalertb_after_devarbrel", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_npem_multi_ports", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_npem_b2b_vpp_update", "owner": "unassigned", "milestone": "VAL0P8", "model": "{fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +ColdReset +SMALERTB", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_hpr +PXPX +GenMax +WarmReset +SMALERTB", "owner": "unassigned", "milestone": "VAL1P0", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_s3_cm3 +PXPX +GenMax +SMALERTB", "owner": "unassigned", "milestone": "VAL1P0", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}, {"test_name": "pch_pcie_PM_state_entry_exit_globalrst +PXPX + GenMax + SMALERTB", "owner": "unassigned", "milestone": "VAL0P8", "model": "{Other, fc_rtl_with_upf}", "soc": "NA", "x4": "NA", "x8": "NA", "overall": "NA", "has_data": false}];
+const OWNER_STATS = {"chewyeec": {"total": 22, "pass": 0, "fail": 0, "absent": 0, "partial": 0, "na": 0, "has_data": false}, "chinfong": {"total": 62, "pass": 0, "fail": 0, "absent": 0, "partial": 0, "na": 0, "has_data": false}, "jyeoh": {"total": 15, "pass": 0, "fail": 0, "absent": 0, "partial": 0, "na": 0, "has_data": false}, "mmahdzir": {"total": 39, "pass": 26, "fail": 2, "absent": 7, "partial": 0, "na": 4, "has_data": true}, "namlee": {"total": 8, "pass": 0, "fail": 0, "absent": 0, "partial": 0, "na": 0, "has_data": false}, "nmorshid": {"total": 43, "pass": 0, "fail": 0, "absent": 0, "partial": 0, "na": 0, "has_data": false}, "unassigned": {"total": 39, "pass": 0, "fail": 0, "absent": 0, "partial": 0, "na": 0, "has_data": false}};
+
+// Badge HTML
+function badge(s) {
+  const map = {
+    PASS:    ['badge-pass', '✅ PASS'],
+    FAIL:    ['badge-fail', '❌ FAIL'],
+    ABSENT:  ['badge-absent', '🔍 ABSENT'],
+    PARTIAL: ['badge-partial', '⚠️ PARTIAL'],
+    NA:      ['badge-na', '—'],
+  };
+  const [cls, txt] = map[s] || ['badge-na', s];
+  return `<span class="badge ${cls}">${txt}</span>`;
+}
+
+// Populate filter dropdowns
+const owners = [...new Set(ALL_ROWS.map(r => r.owner))].sort();
+const milestones = [...new Set(ALL_ROWS.map(r => r.milestone))].filter(Boolean).sort();
+const models = [...new Set(ALL_ROWS.map(r => r.model))].filter(Boolean).sort();
+
+['f-owner', 'f-milestone', 'f-model'].forEach((id, i) => {
+  const sel = document.getElementById(id);
+  const items = [owners, milestones, models][i];
+  items.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+});
+
+// Sort state
+let sortCol = '', sortDir = 1;
+
+function getFilteredRows() {
+  const owner = document.getElementById('f-owner').value;
+  const ms = document.getElementById('f-milestone').value;
+  const status = document.getElementById('f-status').value;
+  const model = document.getElementById('f-model').value;
+  const search = document.getElementById('f-search').value.toLowerCase();
+  return ALL_ROWS.filter(r =>
+    (!owner || r.owner === owner) &&
+    (!ms || r.milestone === ms) &&
+    (!status || r.overall === status) &&
+    (!model || r.model === model) &&
+    (!search || r.test_name.toLowerCase().includes(search))
+  );
+}
+
+function renderTable() {
+  let rows = getFilteredRows();
+  if (sortCol) {
+    rows = [...rows].sort((a, b) => {
+      const av = (a[sortCol]||'').toLowerCase(), bv = (b[sortCol]||'').toLowerCase();
+      return av < bv ? -sortDir : av > bv ? sortDir : 0;
+    });
+  }
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="test-name">${r.test_name}</td>
+      <td><span class="owner-chip">${r.owner}</span></td>
+      <td><span class="milestone-chip">${r.milestone}</span></td>
+      <td style="color:var(--muted);font-size:11px">${r.model||'—'}</td>
+      <td>${badge(r.soc)}</td>
+      <td>${badge(r.x4)}</td>
+      <td>${badge(r.x8)}</td>
+      <td>${badge(r.overall)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('row-count').textContent = `${rows.length} / ${ALL_ROWS.length} tests`;
+}
+
+// Sort on header click
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = 1; }
+    document.querySelectorAll('th').forEach(t => t.classList.remove('sorted-asc','sorted-desc'));
+    th.classList.add(sortDir === 1 ? 'sorted-asc' : 'sorted-desc');
+    renderTable();
+  });
+});
+
+['f-owner','f-milestone','f-status','f-model','f-search'].forEach(id =>
+  document.getElementById(id).addEventListener('input', renderTable)
+);
+document.getElementById('clear-btn').addEventListener('click', () => {
+  ['f-owner','f-milestone','f-status','f-model'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f-search').value = '';
+  renderTable();
+});
+
+renderTable();
+
+// Charts
+const chartDefaults = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
+};
+
+// Donut: mmahdzir overall
+new Chart(document.getElementById('donutChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['PASS', 'FAIL', 'ABSENT', 'NA'],
+    datasets: [{ data: [26, 2, 7, 4],
+      backgroundColor: ['rgba(63,185,80,0.8)','rgba(248,81,73,0.8)','rgba(210,153,34,0.8)','rgba(72,79,88,0.8)'],
+      borderWidth: 0 }]
+  },
+  options: { ...chartDefaults, cutout: '60%' }
+});
+
+// Owner bar chart (total tests from testplan)
+const ownerNames = Object.keys(OWNER_STATS);
+const ownerColors = ['#58a6ff','#3fb950','#ffa657','#a371f7','#79c0ff','#d29922','#484f58'];
+new Chart(document.getElementById('ownerChart'), {
+  type: 'bar',
+  data: {
+    labels: ownerNames,
+    datasets: [
+      { label: 'PASS',   data: ownerNames.map(o => OWNER_STATS[o].pass),   backgroundColor: 'rgba(63,185,80,0.7)' },
+      { label: 'FAIL',   data: ownerNames.map(o => OWNER_STATS[o].fail),   backgroundColor: 'rgba(248,81,73,0.7)' },
+      { label: 'ABSENT', data: ownerNames.map(o => OWNER_STATS[o].absent), backgroundColor: 'rgba(210,153,34,0.7)' },
+      { label: 'Not scanned', data: ownerNames.map(o => OWNER_STATS[o].has_data ? 0 : OWNER_STATS[o].total), backgroundColor: 'rgba(72,79,88,0.5)' },
+    ]
+  },
+  options: { ...chartDefaults, scales: {
+    x: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+    y: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+  } }
+});
+
+// Milestone bar
+const msLabels = ['VAL0P5','VAL0P8','RTL0P5','VAL1P0'];
+const msCounts = msLabels.map(ms => ALL_ROWS.filter(r => r.milestone===ms).length);
+new Chart(document.getElementById('milestoneChart'), {
+  type: 'bar',
+  data: {
+    labels: msLabels,
+    datasets: [{ label: 'Tests', data: msCounts,
+      backgroundColor: ['#58a6ff','#3fb950','#ffa657','#a371f7'],
+      borderWidth: 0 }]
+  },
+  options: { ...chartDefaults,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+    }
+  }
+});
+</script>
+</body>
+</html>
