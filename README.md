@@ -273,3 +273,13 @@ git remote set-url origin https://github.com/intel-sandbox/hsio.pcie-val-assist.
 ```
 Intel Internal Use Only
 ```
+
+## 📊 Workflow Diagrams
+
+Visual workflow structure diagrams for all objectives are available in [`docs/hsio_val_agent_diagrams.html`](docs/hsio_val_agent_diagrams.html).
+
+Open in a browser for interactive, tabbed views of:
+- **Create New Test** — full swimlane from scenario to validated test
+- **Debug a Failure** — structured log analysis and root cause workflow
+- **Generate Regression Report** — all-owner report generation with charts
+
